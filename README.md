@@ -1,5 +1,7 @@
 # resolveS: Resolve RNA-Seq Strand Specificity
 
+[English](README.md) | [中文](README_zh.md)
+
 The aim is to "Rapid RNA-Seq Strand Specificity Detection".
 
 
