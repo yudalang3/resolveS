@@ -29,14 +29,12 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
     # 设置环境变量避免交互式提示
     export DEBIAN_FRONTEND=noninteractive
     
-    # 最小化安装 Python3，清理所有缓存
+    # 最小化安装 Python3 和 Perl，清理 apt 缓存
     apt-get update && apt-get install -y --no-install-recommends \
         python3-minimal \
+        perl \
         && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
-        && rm -rf /tmp/* \
-        && rm -rf /var/tmp/* \
-        && find /var/log -type f -delete
+        && rm -rf /var/lib/apt/lists/*
     
     # 设置可执行权限
     chmod +x /opt/BioInfo/resolveS
@@ -48,6 +46,12 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
     if [ -d "/opt/BioInfo/ref_bowtie2/bowtie2" ]; then
         chmod +x /opt/BioInfo/ref_bowtie2/bowtie2/*
     fi
+    
+    # 清理不必要的文件和缓存（在最后执行）
+    rm -rf /var/cache/apt/* \
+        /var/log/*.log \
+        /usr/share/doc/* \
+        /usr/share/man/*
 
 %environment
     # 将 bowtie2 添加到 PATH

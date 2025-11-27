@@ -7,31 +7,34 @@ Processes count files and performs comprehensive strand bias analysis
 import sys
 import os
 import math
-from dataclasses import dataclass
 from typing import Optional, List, Tuple
 
 
-@dataclass
 class StrandStats:
     """Data class to store all statistics"""
-    filename: str
-    fwd: int
-    rev: int
-    total: int
-    fwd_ratio: float
-    rev_ratio: float
-    f2r_ratio: float
-    log2_f2r: float
-    relative_diff: float
-    chi2: float
-    p_value: float
-    cohens_h: float
-    cramers_v: float
-    bayes_factor: float
-    bayes_interpretation: str
-    epsilon: float
-    hellinger: float
-    entropy: float
+    def __init__(self, filename: str, fwd: int, rev: int, total: int,
+                 fwd_ratio: float, rev_ratio: float, f2r_ratio: float,
+                 log2_f2r: float, relative_diff: float, chi2: float,
+                 p_value: float, cohens_h: float, cramers_v: float,
+                 bayes_factor: float, epsilon: float, hellinger: float,
+                 entropy: float):
+        self.filename = filename
+        self.fwd = fwd
+        self.rev = rev
+        self.total = total
+        self.fwd_ratio = fwd_ratio
+        self.rev_ratio = rev_ratio
+        self.f2r_ratio = f2r_ratio
+        self.log2_f2r = log2_f2r
+        self.relative_diff = relative_diff
+        self.chi2 = chi2
+        self.p_value = p_value
+        self.cohens_h = cohens_h
+        self.cramers_v = cramers_v
+        self.bayes_factor = bayes_factor
+        self.epsilon = epsilon
+        self.hellinger = hellinger
+        self.entropy = entropy
 
 
 def compute_proportions(fwd: int, rev: int) -> Tuple[float, float, float]:
@@ -195,7 +198,7 @@ def compute_cramers_v(fwd: int, rev: int) -> float:
     return math.sqrt(chi2 / total)
 
 
-def compute_bayes_factor(fwd: int, rev: int) -> Tuple[float, str]:
+def compute_bayes_factor(fwd: int, rev: int) -> float:
     """
     Calculate Bayes Factor - Method to solve large sample size issues
 
@@ -227,11 +230,11 @@ def compute_bayes_factor(fwd: int, rev: int) -> Tuple[float, str]:
         rev: Reverse strand count
 
     Returns:
-        (Bayes factor BF01, interpretation text)
+        Bayes factor BF01
     """
     total = fwd + rev
     if total == 0:
-        return float('nan'), "No data"
+        return float('nan')
 
     # Using Savage-Dickey density ratio
     # Prior: Beta(1, 1) = Uniform(0, 1)
@@ -260,29 +263,7 @@ def compute_bayes_factor(fwd: int, rev: int) -> Tuple[float, str]:
     log_bf01 = log_posterior_density - log_prior_density
     bf01 = math.exp(log_bf01)
 
-    # Interpret Bayes factor
-    if bf01 > 100:
-        interpretation = "Extreme evidence: uniform"
-    elif bf01 > 30:
-        interpretation = "Very strong evidence: uniform"
-    elif bf01 > 10:
-        interpretation = "Strong evidence: uniform"
-    elif bf01 > 3:
-        interpretation = "Moderate evidence: uniform"
-    elif bf01 > 1:
-        interpretation = "Weak evidence: uniform"
-    elif bf01 > 1 / 3:
-        interpretation = "Weak evidence: non-uniform"
-    elif bf01 > 1 / 10:
-        interpretation = "Moderate evidence: non-uniform"
-    elif bf01 > 1 / 30:
-        interpretation = "Strong evidence: non-uniform"
-    elif bf01 > 1 / 100:
-        interpretation = "Very strong evidence: non-uniform"
-    else:
-        interpretation = "Extreme evidence: non-uniform"
-
-    return bf01, interpretation
+    return bf01
 
 def compute_effect_size_epsilon(fwd: int, rev: int) -> float:
     """
@@ -412,7 +393,7 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
     chi2, p_value = compute_chi_test(fwd, rev)
     cohens_h = compute_cohens_h(fwd, rev)
     cramers_v = compute_cramers_v(fwd, rev)
-    bayes_factor, bayes_interpretation = compute_bayes_factor(fwd, rev)
+    bayes_factor = compute_bayes_factor(fwd, rev)
 
     epsilon = compute_effect_size_epsilon(fwd, rev)
     hellinger = compute_hellinger_distance(fwd, rev)
@@ -434,10 +415,9 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
         cohens_h=cohens_h,
         cramers_v=cramers_v,
         bayes_factor=bayes_factor,
-        bayes_interpretation=bayes_interpretation,
         epsilon=epsilon,
         hellinger=hellinger,
-        entropy=entropy,
+        entropy=entropy
     )
 
 
@@ -501,7 +481,6 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
         "Cohens_h",
         "Cramers_V",
         "Bayes_Factor",
-        "Bayes_Interpret",
         "Epsilon",
         "Hellinger",
         "Entropy"
@@ -515,21 +494,19 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
             str(s.fwd),
             str(s.rev),
             str(s.total),
-            f"{s.fwd_ratio:.4f}",
-            f"{s.rev_ratio:.4f}",
-            f"{s.f2r_ratio:.4f}" if not math.isinf(s.f2r_ratio) else "Inf",
-            f"{s.log2_f2r:.4f}",
-            f"{s.relative_diff:.4f}",
-            f"{s.chi2:.4f}",
-            f"{s.p_value:.4e}",
-            f"{s.cohens_h:.4f}",
-            f"{s.cramers_v:.4f}",
-            f"{s.bayes_factor:.4e}",
-            s.bayes_interpretation,
-            f"{s.epsilon:.4f}",
-            f"{s.hellinger:.4f}",
-            f"{s.entropy:.4f}"
-
+            f"{s.fwd_ratio:.6f}",
+            f"{s.rev_ratio:.6f}",
+            f"{s.f2r_ratio:.6f}" if not math.isinf(s.f2r_ratio) else "Inf",
+            f"{s.log2_f2r:.6f}",
+            f"{s.relative_diff:.6f}",
+            f"{s.chi2:.6f}",
+            f"{s.p_value:.6e}",
+            f"{s.cohens_h:.6f}",
+            f"{s.cramers_v:.6f}",
+            f"{s.bayes_factor:.6e}",
+            f"{s.epsilon:.6f}",
+            f"{s.hellinger:.6f}",
+            f"{s.entropy:.6f}"
         ]
         lines.append(sep.join(row))
 
@@ -631,7 +608,6 @@ def print_detailed_report(stats: StrandStats):
 
     print("\n[Bayesian Analysis] (Recommended for large samples)")
     print(f"  Bayes factor (BF01): {stats.bayes_factor:.4e}")
-    print(f"  Interpretation: {stats.bayes_interpretation}")
     print("  Note: BF01 > 1 supports uniform distribution hypothesis, BF01 < 1 supports non-uniform distribution hypothesis")
 
     print("\n" + "=" * 60)
