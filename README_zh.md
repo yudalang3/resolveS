@@ -49,6 +49,8 @@ mamba install bioconda::bowtie2
 
 ## 如果您偏好一步到位的解决方案
 
+这是一套即用型且省时的解决方案。无需安装任何东西！
+
 我们提供了 Singularity（或 Apptainer）容器以便使用。您可以直接下载镜像文件并运行：
 
 ```bash

@@ -29,6 +29,10 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
     # 设置环境变量避免交互式提示
     export DEBIAN_FRONTEND=noninteractive
     
+    # 使用阿里云镜像源加速
+    sed -i 's@http://.*archive.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list
+    sed -i 's@http://.*security.ubuntu.com@http://mirrors.aliyun.com@g' /etc/apt/sources.list
+    
     # 最小化安装 Python3 和 Perl，清理 apt 缓存
     apt-get update && apt-get install -y --no-install-recommends \
         python3-minimal \

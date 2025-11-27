@@ -50,11 +50,13 @@ After activating the environment, proceed with the installation steps as describ
 
 ## If you prefer a one-step solution
 
+This is a ready-to-use and time-saving solution.
+
 We provide a Singularity (or Apptainer) container for ease of use. You can download the image file directly and run it:
 
 ```bash
 # To run the default command within the container
-singularity run resolveS_v0.0.1.sif
+singularity run /path/to/resolveS_singularity_v0.0.1.sif -s 1_fastq.gz
 
 # To execute the 'resolveS' command directly within the container
 singularity exec resolveS_v0.0.1.sif resolveS
