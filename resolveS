@@ -248,9 +248,8 @@ case $MODE in
         ;;
 esac
 
-log_info "All done!"
 
-python /home/dell/projects/estimate_strand4NGS/check_strand.py $OUTPUT_FILE
+python ${SCRIPT_DIR}/check_strand.py $OUTPUT_FILE
 # Clean up
 if [[ -f resolveS.sam ]]; then
     rm resolveS.sam
@@ -262,5 +261,6 @@ if [[ -f $OUTPUT_FILE ]]; then
     log_info "Cleaned up temporary file: $OUTPUT_FILE"
 fi
  
+log_info "All done!"
 
 exit 0
