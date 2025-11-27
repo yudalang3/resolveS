@@ -249,7 +249,7 @@ case $MODE in
 esac
 
 
-python ${SCRIPT_DIR}/check_strand.py $OUTPUT_FILE
+python3 ${SCRIPT_DIR}/check_strand.py $OUTPUT_FILE
 # Clean up
 if [[ -f resolveS.sam ]]; then
     rm resolveS.sam

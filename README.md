@@ -13,6 +13,12 @@ resolveS is a high-performance tool designed to solve this problem instantly. It
 
 To begin, please download the archive file from the **releases** section. Follow the instructions below based on your existing environment to proceed with the software installation.
 
+If the `./resolveS` file is executable, you can skip the next step. Otherwise, you need to make it executable by running the following command in the terminal:
+
+```bash
+chmod +x ./resolveS ./count_sam.sh ./check_strand.py ./align_by_bowtie2.sh
+```
+
 ---
 
 ## If you already have **Bowtie 2** and **Python 3** installed

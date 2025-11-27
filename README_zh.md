@@ -12,6 +12,12 @@ resolveS 是一款高性能工具，旨在即时解决这一问题。它**超快
 
 首先，请从 **releases** 部分下载压缩包文件。根据您现有的环境，按照以下说明进行软件安装。
 
+如果 `./resolveS` 文件已经是可执行的，您可以跳过下一步。否则，您需要通过在终端中运行以下命令使其可执行：
+
+```bash
+chmod +x ./resolveS ./count_sam.sh ./check_strand.py ./align_by_bowtie2.sh
+```
+
 ---
 
 ## 如果您已安装 **Bowtie 2** 和 **Python 3**
@@ -33,7 +39,7 @@ conda/mamba activate estimate
 
 **方法 2：创建环境，然后通过 Bioconda 安装 Bowtie 2**
 
-```bash
+```
 conda/mamba create -n estimate python=3
 conda/mamba activate estimate
 mamba install bioconda::bowtie2
