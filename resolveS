@@ -21,6 +21,7 @@ THREADS=6
 # Get the DIR of the SCRIPT
 #SCRIPT_DIR="/home/dell/projects/estimate_strand4NGS"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+BOWTIE2_GENOME_INDEX="ref_bowtie2/default"
 
 # Color output
 RED='\033[0;31m'
@@ -77,11 +78,16 @@ log_error() {
 check_dependencies() {
     local missing=0
     
+    if [[ ! -f "${SCRIPT_DIR}/ref_bowtie2/default.1.bt2" ]]; then
+        log_error "Can not found the bowtie2 genome index file, please go to https://github.com/yudalang3/resolveS download it."
+        missing=1
+    fi
+    
     if [[ ! -f "${SCRIPT_DIR}/align_by_bowtie2.sh" ]]; then
         log_error "Required script not found: ${SCRIPT_DIR}/align_by_bowtie2.sh"
         missing=1
     fi
-    
+ 
     if [[ ! -f "${SCRIPT_DIR}/count_sam.sh" ]]; then
         log_error "Required script not found: ${SCRIPT_DIR}/count_sam.sh"
         missing=1
@@ -105,7 +111,7 @@ process_single_file() {
     log_info "Processing: $input (threads: $threads)"
     
     # Run alignment
-    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "$threads"
+    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$BOWTIE2_GENOME_INDEX" "$threads"
     
     # Get basename for logging
     local fullpath=$(realpath "$input")
@@ -114,12 +120,7 @@ process_single_file() {
     # Count SAM file with thread parameter
     "${SCRIPT_DIR}/count_sam.sh" resolveS.sam "$output" "$fullpath"
     
-    # Clean up
-    if [[ -f resolveS.sam ]]; then
-        rm resolveS.sam
-        log_info "Cleaned up temporary file: resolveS.sam"
-    fi
-    
+   
     # Display results
     #log_info "Results for $basename:"
     #cat "$output"
@@ -250,6 +251,16 @@ esac
 log_info "All done!"
 
 python /home/dell/projects/estimate_strand4NGS/check_strand.py $OUTPUT_FILE
+# Clean up
+if [[ -f resolveS.sam ]]; then
+    rm resolveS.sam
+    log_info "Cleaned up temporary file: resolveS.sam"
+fi
 
+if [[ -f $OUTPUT_FILE ]]; then
+    rm $OUTPUT_FILE
+    log_info "Cleaned up temporary file: $OUTPUT_FILE"
+fi
+ 
 
 exit 0

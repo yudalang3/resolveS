@@ -1,16 +1,17 @@
 #!/bin/bash
 
 # Check if input file is provided
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <input_file> [threads]"
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <input_file> <genome_index> [threads]"
     echo "  input_file: Path to the input FASTQ file (required)"
+    echo "  genome_index: Path to the genome index (required)"
     echo "  threads: Number of threads (optional, default: 6)"
     exit 1
 fi
-
 # Assign input parameters
 INPUT_FILE="$1"
-THREADS="${2:-6}"  # Default to 6 if not provided
+G_INDEX="$2"
+THREADS="${3:-6}"  # Default to 6 if not provided
 
 # Validate input file exists
 if [ ! -f "$INPUT_FILE" ]; then
@@ -28,6 +29,6 @@ fi
 # Run bowtie2 alignment
 bowtie2 -p "$THREADS" \
   -u 4000000 \
-  -x /home/dell/projects/estimate_strand4NGS/ref_bowtie2/default \
+  -x "$G_INDEX" \
   -U "$INPUT_FILE" \
-  -S resolveS.sam 2> log_bowtie2_stats.txt
+  -S resolveS.sam
