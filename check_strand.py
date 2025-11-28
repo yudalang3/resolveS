@@ -5,9 +5,8 @@ Processes count files and performs comprehensive strand bias analysis
 """
 
 import sys
-import os
 import math
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 
 
 class StrandStats:
@@ -17,8 +16,9 @@ class StrandStats:
                  log2_f2r: float, relative_diff: float, chi2: float,
                  p_value: float, cohens_h: float, cramers_v: float,
                  bayes_factor: float, epsilon: float, hellinger: float,
-                 entropy: float):
+                 entropy: float, strandedness: str):
         self.filename = filename
+        self.strandedness = strandedness
         self.fwd = fwd
         self.rev = rev
         self.total = total
@@ -372,6 +372,25 @@ def compute_normalized_entropy(fwd: int, rev: int) -> float:
 
     return normalized_entropy
 
+def determine_strandedness(fwd_ratio: float, rev_ratio: float) -> str:
+    """
+    Determine strandedness based on forward and reverse ratios
+    
+    Args:
+        fwd_ratio: Forward strand ratio
+        rev_ratio: Reverse strand ratio
+    
+    Returns:
+        Strandedness type: 'fr-firststrand', 'fr-secondstrand', or 'fr-unstranded'
+    """
+    if fwd_ratio >= 0.9:
+        return 'fr-firststrand'
+    elif rev_ratio >= 0.9:
+        return 'fr-secondstrand'
+    else:
+        return 'fr-unstranded'
+
+
 def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
     """
     Comprehensive analysis of forward/reverse strand preference
@@ -399,6 +418,8 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
     hellinger = compute_hellinger_distance(fwd, rev)
     entropy = compute_normalized_entropy(fwd, rev)
     
+    # Determine strandedness
+    strandedness = determine_strandedness(fwd_ratio, rev_ratio)
 
     return StrandStats(
         filename=name,
@@ -417,7 +438,8 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
         bayes_factor=bayes_factor,
         epsilon=epsilon,
         hellinger=hellinger,
-        entropy=entropy
+        entropy=entropy,
+        strandedness=strandedness
     )
 
 
@@ -468,6 +490,7 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
     # Table header
     headers = [
         "File",
+        "Strandedness",
         "Fwd",
         "Rev",
         "Total",
@@ -491,6 +514,7 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
     for s in stats_list:
         row = [
             s.filename,
+            s.strandedness,
             str(s.fwd),
             str(s.rev),
             str(s.total),
@@ -609,6 +633,9 @@ def print_detailed_report(stats: StrandStats):
     print("\n[Bayesian Analysis] (Recommended for large samples)")
     print(f"  Bayes factor (BF01): {stats.bayes_factor:.4e}")
     print("  Note: BF01 > 1 supports uniform distribution hypothesis, BF01 < 1 supports non-uniform distribution hypothesis")
+
+    print("\n[Strandedness]")
+    print(f"  Type: {stats.strandedness}")
 
     print("\n" + "=" * 60)
 
