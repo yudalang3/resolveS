@@ -9,7 +9,7 @@ Accurate determination of strand specificity (stranded vs. non-stranded) is a cr
 
 resolveS is a high-performance tool designed to solve this problem instantly. It is **super-fast, memory-efficient**, and user-friendly, making it the perfect addition to any RNA-Seq Quality Control (QC) pipeline. Whether you are exploring public data or validating your own libraries, resolveS provides the necessary metadata to ensure your downstream analysis is accurate and reproducible.
 
-# Installation
+# Installation & Current Version
 
 To begin, please download the archive file from the **releases** section. Follow the instructions below based on your existing environment to proceed with the software installation.
 
@@ -18,6 +18,8 @@ If the `./resolveS` file is executable, you can skip the next step. Otherwise, y
 ```bash
 chmod +x ./resolveS ./count_sam.sh ./check_strand.py ./align_by_bowtie2.sh
 ```
+
+Please see the `$ resolveS -h` for more information on the version and usage.
 
 ---
 
