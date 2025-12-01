@@ -1,11 +1,11 @@
-# resolveS: Resolve RNA-Seq Strand Specificity
+# resolveS: Rapid RNA-Seq Strand Specificity Detection
 
 [English](README.md) | [中文](README_zh.md)
 
-The aim is to "Rapid RNA-Seq Strand Specificity Detection".
+The goal of this tool is "Rapid RNA-Seq Strand Specificity Detection".
 
 
-Accurate determination of strand specificity (stranded vs. non-stranded) is a critical prerequisite for transcriptomic analysis. It is a vital parameter for configuring essential bioinformatics tools like featureCounts and Trinity. However, this information is often missing or incorrectly specified in public datasets, which can lead to detrimental effects on the reproducibility and misinterpretation of results.
+Accurate determination of strand specificity (stranded vs. non-stranded) is a critical prerequisite for transcriptomic analysis. It is a necessary parameter for configuring essential bioinformatics tools like featureCounts and Trinity. However, this information is often missing or incorrectly annotated in public datasets, which can lead to reproducibility issues and misinterpretation of results.
 
 resolveS is a high-performance tool designed to solve this problem instantly. It is **super-fast, memory-efficient**, and user-friendly, making it the perfect addition to any RNA-Seq Quality Control (QC) pipeline. Whether you are exploring public data or validating your own libraries, resolveS provides the necessary metadata to ensure your downstream analysis is accurate and reproducible.
 
@@ -70,9 +70,9 @@ After activating the environment, proceed with the installation steps as describ
 
 > You also need to download the bowtie2 index files
 
-## 3. If you prefer a one-step solution
+## 3. If you prefer `a one-step solution`
 
-This is a ready-to-use and time-saving solution. No need to install anything!
+This is a ready-to-use and time-saving `solution`. No need to install anything!
 
 We provide a Singularity (or Apptainer) container for ease of use. You can download the image file directly and run it:
 
@@ -112,3 +112,22 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 /home/dell/projects/estimate_strand4NGS/test_data1/ss/1-1/1-1_1.fq.gz   fr-secondstrand   3117    37696   40813   0.076373        0.923627        0.082688        -3.595969       1.694509    29297.215128    0.000000e+00    -1.010795       0.847255        0.000000e+00    0.748243        0.353579        0.389267
 
 ```
+
+For the end-user, the `one-step solution` is the most convenient way to use resolveS.
+And you can focus on the `File` and `Strandedness` columns in the output tsv file.
+
+# Full program documentation
+
+## Parameters explanation
+
+### Single file runnning mode:
+- `-h`, `--help`: Show help message and exit.
+- `-s <file>`: Input fastq file.
+- `-p <int>`: Number of threads (default: 6).
+- `-o <output_file>`: Output file (default: stdout).
+
+### Batch file running mode:
+- `-h`, `--help`: Show help message and exit.
+- `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
+- `-p <int>`: Number of threads (default: 6).
+- `-o <output_file>`: Output file (default: stdout).
