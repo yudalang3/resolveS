@@ -126,10 +126,12 @@ And you can focus on the `File` and `Strandedness` columns in the output tsv fil
 - `-h`, `--help`: Show help message and exit.
 - `-s <file>`: Input fastq file.
 - `-p <int>`: Number of threads (default: 6).
+- `-u <number>`: Maximum number of reads to align (default: 4000000).
 - `-o <output_file>`: Output file (default: stdout).
 
 ### Batch file running mode:
 - `-h`, `--help`: Show help message and exit.
 - `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
 - `-p <int>`: Number of threads (default: 6).
+- `-u <number>`: Maximum number of reads to align (default: 4000000).
 - `-o <output_file>`: Output file (default: stdout).

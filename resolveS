@@ -18,6 +18,7 @@ INPUT_FILE=""
 METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
+MAX_ALIG_READS=4000000
 # Get the DIR of the SCRIPT
 #SCRIPT_DIR="/home/dell/projects/estimate_strand4NGS"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -43,6 +44,7 @@ Options:
     -b <file>       Batch mode: process multiple files from metadata file
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
     -p <number>     Number of threads to use (default: 6)
+    -u <number>     Maximum number of reads to align (default: 4000000)
     -h              Show this help message
 
 Examples:
@@ -51,6 +53,9 @@ Examples:
     
     # Batch mode with multiple threads
     $0 -b metadata.txt -p 8
+    
+    # Limit alignment to 2 million reads
+    $0 -s sample_1.fastq -u 2000000
 Note: Please input the R1 fastq file.
 
 Metadata file format (one file path per line):
@@ -103,16 +108,17 @@ process_single_file() {
     local input="$1"
     local output="$2"
     local threads="$3"
+    local max_alig_reads="$4"
     
     if [[ ! -f "$input" ]]; then
         log_error "Input file not found: $input"
         return 1
     fi
     
-    log_info "Processing: $input (threads: $threads)"
+    log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads)"
     
     # Run alignment
-    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$BOWTIE2_GENOME_INDEX" "$threads"
+    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$BOWTIE2_GENOME_INDEX" "$threads" "$max_alig_reads"
     
     # Get basename for logging
     local fullpath=$(realpath "$input")
@@ -134,6 +140,7 @@ process_batch() {
     local metadata="$1"
     local output_file="$2"
     local threads="$3"
+    local max_alig_reads="$4"
     
     if [[ ! -f "$metadata" ]]; then
         log_error "Metadata file not found: $metadata"
@@ -147,7 +154,7 @@ process_batch() {
     local success=0
     local failed=0
     
-    log_info "Starting batch processing of $total_lines files (threads: $threads) "
+    log_info "Starting batch processing of $total_lines files (threads: $threads, max_alig_reads: $max_alig_reads)"
     
     while IFS= read -r input_file || [[ -n "$input_file" ]]; do
         # Skip empty lines
@@ -166,7 +173,7 @@ process_batch() {
         # Generate output filename
         local basename=$(basename "$input_file")
         
-        process_single_file "$input_file" "$output_file" "$threads"
+        process_single_file "$input_file" "$output_file" "$threads" "$max_alig_reads"
         local result=$?
         
         if [[ $result -eq 0 ]]; then
@@ -188,7 +195,7 @@ process_batch() {
 #===============================================================================
 
 # Parse command line arguments
-while getopts "s:b:c:p:h" opt; do
+while getopts "s:b:c:p:u:h" opt; do
     case $opt in
         s)
             MODE="single"
@@ -206,6 +213,14 @@ while getopts "s:b:c:p:h" opt; do
             # Validate thread number
             if ! [[ "$THREADS" =~ ^[0-9]+$ ]] || [[ "$THREADS" -lt 1 ]]; then
                 log_error "Invalid thread number: $THREADS (must be a positive integer)"
+                exit 1
+            fi
+            ;;
+        u)
+            MAX_ALIG_READS="$OPTARG"
+            # Validate max_alig_reads number
+            if ! [[ "$MAX_ALIG_READS" =~ ^[0-9]+$ ]] || [[ "$MAX_ALIG_READS" -lt 1 ]]; then
+                log_error "Invalid max_alig_reads number: $MAX_ALIG_READS (must be a positive integer)"
                 exit 1
             fi
             ;;
@@ -238,14 +253,14 @@ case $MODE in
             log_error "Input file not specified for single mode"
             exit 1
         fi
-        process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS"
+        process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS"
         ;;
     batch)
         if [[ -z "$METADATA_FILE" ]]; then
             log_error "Metadata file not specified for batch mode"
             exit 1
         fi
-        process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS"
+        process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS"
         ;;
 esac
 

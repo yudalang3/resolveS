@@ -126,10 +126,12 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-s <file>`：输入 fastq 文件。
 - `-p <int>`：线程数（默认：6）。
+- `-u <number>`：比对的最大 reads 数量（默认：4000000）。
 - `-o <output_file>`：输出文件（默认：stdout）。
 
 ### 批量文件运行模式：
 - `-h`, `--help`：显示帮助信息并退出。
 - `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
 - `-p <int>`：线程数（默认：6）。
+- `-u <number>`：比对的最大 reads 数量（默认：4000000）。
 - `-o <output_file>`：输出文件（默认：stdout）。
