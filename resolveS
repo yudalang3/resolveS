@@ -36,7 +36,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << EOF
-This is resolveS version 0.0.2
+This is resolveS version 0.0.3
 Usage: $0 [OPTIONS]
 
 Options:
