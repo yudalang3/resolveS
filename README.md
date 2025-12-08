@@ -92,7 +92,25 @@ singularity exec resolveS_v0.0.1.sif resolveS
 
 Take the `one-step solution` as an example:
 
-> The `Strandedness` field(column) has three possible values: fr-unstranded, fr-firststrand, fr-secondstrand.
+> The `Strandedness` field(column) has four possible values: fr-unstranded, fr-firststrand, fr-secondstrand, and insufficient-data.
+
+## Strandedness Determination Criteria
+
+The tool uses a three-tier decision process to determine strand specificity:
+
+1. **Total Count Check (Total > 3000)**
+   - If the total count (Forward + Reverse) ≤ 3000, the result will be `insufficient-data`
+   - This ensures sufficient statistical power for reliable inference
+
+2. **Strand Specificity Test (Relative Difference > 1)**
+   - If Relative Difference (Rel_Diff) ≤ 1, the result will be `fr-unstranded`
+   - This indicates non-strand-specific sequencing
+
+3. **Strand Orientation (F2R_Ratio > 1)**
+   - If F2R_Ratio > 1, the result will be `fr-firststrand`
+   - Otherwise, the result will be `fr-secondstrand`
+
+These criteria ensure accurate and reliable strand specificity detection by filtering out low-coverage samples and properly distinguishing between different library preparation protocols.
 
 ```bash
 $ time apptainer run /home/dell/projects/estimate_strand4NGS/formal_program/resolveS/db/resolveS_singularity_v0.0.1.sif -s ss/1-1/1-1_1.fq.gz -p 10 > results.tsv

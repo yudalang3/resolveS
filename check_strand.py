@@ -372,23 +372,36 @@ def compute_normalized_entropy(fwd: int, rev: int) -> float:
 
     return normalized_entropy
 
-def determine_strandedness(fwd_ratio: float, rev_ratio: float) -> str:
+def determine_strandedness(total: int, relative_diff: float, f2r_ratio: float) -> str:
     """
-    Determine strandedness based on forward and reverse ratios
+    Determine strandedness based on total count, relative difference, and F2R ratio
+    
+    Criteria:
+    1. Total > 3000: Otherwise cannot infer, return 'insufficient-data'
+    2. Rel_Diff > 1: Strand-specific sequencing; otherwise non-specific (fr-unstranded)
+    3. F2R_Ratio > 1: fr-firststrand; otherwise fr-secondstrand
     
     Args:
-        fwd_ratio: Forward strand ratio
-        rev_ratio: Reverse strand ratio
+        total: Total count (forward + reverse)
+        relative_diff: Relative difference value
+        f2r_ratio: Forward to reverse ratio
     
     Returns:
-        Strandedness type: 'fr-firststrand', 'fr-secondstrand', or 'fr-unstranded'
+        Strandedness type: 'fr-firststrand', 'fr-secondstrand', 'fr-unstranded', or 'insufficient-data'
     """
-    if fwd_ratio >= 0.9:
-        return 'fr-firststrand'
-    elif rev_ratio >= 0.9:
-        return 'fr-secondstrand'
-    else:
+    # Check if total count is sufficient
+    if total <= 3000:
+        return 'insufficient-data'
+    
+    # Check if strand-specific
+    if relative_diff <= 1:
         return 'fr-unstranded'
+    
+    # Determine strand orientation
+    if f2r_ratio > 1:
+        return 'fr-firststrand'
+    else:
+        return 'fr-secondstrand'
 
 
 def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
@@ -418,8 +431,8 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
     hellinger = compute_hellinger_distance(fwd, rev)
     entropy = compute_normalized_entropy(fwd, rev)
     
-    # Determine strandedness
-    strandedness = determine_strandedness(fwd_ratio, rev_ratio)
+    # Determine strandedness using the new criteria
+    strandedness = determine_strandedness(total, relative_diff, f2r_ratio)
 
     return StrandStats(
         filename=name,

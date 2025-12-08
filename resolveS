@@ -186,7 +186,6 @@ process_batch() {
         #echo "----------------------------------------"
     done < "$metadata"
     
-    echo ""
     log_info "Batch processing completed!"
     log_info "Total: $total_lines | Success: $success | Failed: $failed"
 }

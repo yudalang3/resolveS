@@ -92,7 +92,25 @@ singularity exec resolveS_v0.0.1.sif resolveS
 
 以 `一步到位的解决方案` 为例：
 
-> `Strandedness` 字段（列）有三个可能的值：fr-unstranded、fr-firststrand、fr-secondstrand。
+> `Strandedness` 字段（列）有四个可能的值：fr-unstranded、fr-firststrand、fr-secondstrand 和 insufficient-data。
+
+## 链特异性判定标准
+
+本工具使用三级决策流程来判定链特异性：
+
+1. **总数检查（Total > 3000）**
+   - 如果总数（正链 + 负链）≤ 3000，结果将为 `insufficient-data`（数据不足）
+   - 这确保了有足够的统计能力进行可靠推断
+
+2. **链特异性测试（相对差异 > 1）**
+   - 如果相对差异（Rel_Diff）≤ 1，结果将为 `fr-unstranded`（非链特异性）
+   - 这表明是非链特异性测序
+
+3. **链方向判定（F2R_Ratio > 1）**
+   - 如果 F2R_Ratio > 1，结果将为 `fr-firststrand`（第一链）
+   - 否则，结果将为 `fr-secondstrand`（第二链）
+
+这些标准通过过滤低覆盖度样本并正确区分不同的文库制备方案，确保准确可靠的链特异性检测。
 
 ```bash
 $ time apptainer run /home/dell/projects/estimate_strand4NGS/formal_program/resolveS/db/resolveS_singularity_v0.0.1.sif -s ss/1-1/1-1_1.fq.gz -p 10 > results.tsv
