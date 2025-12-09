@@ -6,7 +6,7 @@ set -e
 
 # 定义变量
 OUTPUT_DIR="db"
-IMAGE_NAME="${OUTPUT_DIR}/resolveS_apptainer_v0.0.1.sif"
+IMAGE_NAME="${OUTPUT_DIR}/resolveS_apptainer_v0.0.4.sif"
 DEF_FILE="${OUTPUT_DIR}/resolveS_apptainer.def"
 
 # 创建输出目录

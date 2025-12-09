@@ -63,3 +63,11 @@ Batch_gzip_fastq_5	Apptainer_image	15	4000000	1	73.07	.325
 Batch_gzip_fastq_5	Apptainer_image	15	4000000	2	65.59	.330
 Batch_gzip_fastq_5	Apptainer_image	15	4000000	3	65.44	.328
 Batch_gzip_fastq_5	Apptainer_image	15	1000000	1	19.11	.326
+Batch_gzip_fastq_5	Apptainer_image	15	1000000	2	18.5	.323
+Batch_gzip_fastq_5	Apptainer_image	15	1000000	3	18.71	.323
+Batch_gzip_fastq_5	Apptainer_image	8	4000000	1	76.97	.284
+Batch_gzip_fastq_5	Apptainer_image	8	4000000	2	76.49	.283
+Batch_gzip_fastq_5	Apptainer_image	8	4000000	3	72.01	.283
+Batch_gzip_fastq_5	Apptainer_image	8	1000000	1	20.78	.279
+Batch_gzip_fastq_5	Apptainer_image	8	1000000	2	21.07	.282
+Batch_gzip_fastq_5	Apptainer_image	8	1000000	3	21.62	.283
