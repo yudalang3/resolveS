@@ -6,7 +6,7 @@ set -e
 
 # 定义变量
 OUTPUT_DIR="db"
-IMAGE_NAME="${OUTPUT_DIR}/resolveS_singularity_v0.0.4.sif"
+IMAGE_NAME="${OUTPUT_DIR}/resolveS_singularity_v0.0.5.sif"
 DEF_FILE="${OUTPUT_DIR}/resolveS.def"
 
 # 创建输出目录
@@ -68,7 +68,7 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
 
 %labels
     Author resolveS
-    Version v0.0.1
+    Version v0.0.5
     Description resolveS: Resolve RNA-Seq Strand Specificity
 
 %help

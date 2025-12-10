@@ -1,18 +1,18 @@
 #!/bin/bash
-# Apptainer 镜像构建脚本
-# 用法: ./make_apptainer_image.sh
+# Singularity 镜像构建脚本
+# 用法: ./make_singularity_image.sh
 
 set -e
 
 # 定义变量
 OUTPUT_DIR="db"
-IMAGE_NAME="${OUTPUT_DIR}/resolveS_apptainer_v0.0.5.sif"
-DEF_FILE="${OUTPUT_DIR}/resolveS_apptainer.def"
+IMAGE_NAME="${OUTPUT_DIR}/resolveS_singularity_plant_v0.0.5.sif"
+DEF_FILE="${OUTPUT_DIR}/resolveS.def"
 
 # 创建输出目录
 mkdir -p ${OUTPUT_DIR}
 
-# 创建 Apptainer 定义文件
+# 创建 Singularity 定义文件，这个意思是把EOF中间的文本写入到resolveS.def文件中
 cat > ${DEF_FILE} << 'EOF'
 Bootstrap: docker
 From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
@@ -22,8 +22,9 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
     align_by_bowtie2.sh /opt/BioInfo/align_by_bowtie2.sh
     check_strand.py /opt/BioInfo/check_strand.py
     count_sam.sh /opt/BioInfo/count_sam.sh
-    resolveS /opt/BioInfo/resolveS
-    ref_bowtie2 /opt/BioInfo/ref_bowtie2
+    resolveS_plant /opt/BioInfo/resolveS_plant
+    ref_bowtie2/bowtie2 /opt/BioInfo/ref_bowtie2/bowtie2
+    ref_plant /opt/BioInfo/ref_plant
 
 %post
     # 设置环境变量避免交互式提示
@@ -41,7 +42,7 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
         && rm -rf /var/lib/apt/lists/*
     
     # 设置可执行权限
-    chmod +x /opt/BioInfo/resolveS
+    chmod +x /opt/BioInfo/resolveS_plant
     chmod +x /opt/BioInfo/align_by_bowtie2.sh
     chmod +x /opt/BioInfo/check_strand.py
     chmod +x /opt/BioInfo/count_sam.sh
@@ -64,30 +65,30 @@ From: registry.cn-hangzhou.aliyuncs.com/acs/ubuntu:22.04
 
 %runscript
     # 默认运行 resolveS
-    exec /opt/BioInfo/resolveS "$@"
+    exec /opt/BioInfo/resolveS_plant "$@"
 
 %labels
     Author resolveS
-    Version v0.0.1
+    Version v0.0.5
     Description resolveS: Resolve RNA-Seq Strand Specificity
 
 %help
-    这是 resolveS 的 Apptainer 容器镜像。
+    这是 resolveS 的 Singularity 容器镜像。
     
     使用方法:
-        apptainer run ${IMAGE_NAME}
-        apptainer exec ${IMAGE_NAME} resolveS
+        singularity run ${IMAGE_NAME}
+        singularity exec ${IMAGE_NAME} resolveS_plant
         
     resolveS 是一个快速检测 RNA-Seq 链特异性的工具。
 EOF
 
 echo "========================================"
-echo "开始构建 Apptainer 镜像..."
+echo "开始构建 Singularity 镜像..."
 echo "========================================"
 
 # 检查必要文件是否存在
 echo "检查必要文件..."
-for file in align_by_bowtie2.sh check_strand.py count_sam.sh resolveS; do
+for file in align_by_bowtie2.sh check_strand.py count_sam.sh resolveS_plant; do
     if [ ! -f "$file" ]; then
         echo "错误: 找不到文件 $file"
         exit 1
@@ -101,17 +102,17 @@ fi
 
 echo "所有必要文件检查完成！"
 
-# 构建镜像（可能需要 sudo 权限）
+# 构建镜像（需要 sudo 权限）
 echo "开始构建镜像（这可能需要几分钟时间）..."
-apptainer build ${IMAGE_NAME} ${DEF_FILE}
+sudo singularity build ${IMAGE_NAME} ${DEF_FILE}
 
 if [ $? -eq 0 ]; then
     echo "========================================"
     echo "镜像构建成功: ${IMAGE_NAME}"
     echo "========================================"
     echo "测试镜像:"
-    echo "  apptainer run ${IMAGE_NAME}"
-    echo "  apptainer exec ${IMAGE_NAME} resolveS"
+    echo "  singularity run ${IMAGE_NAME}"
+    echo "  singularity exec ${IMAGE_NAME} resolveS_plant"
 else
     echo "镜像构建失败！"
     exit 1

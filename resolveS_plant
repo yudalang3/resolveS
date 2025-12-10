@@ -21,7 +21,7 @@ THREADS=6
 MAX_ALIG_READS=1000000
 # Get the DIR of the SCRIPT
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-BOWTIE2_GENOME_INDEX="ref_bowtie2/default"
+BOWTIE2_GENOME_INDEX="ref_plant/default_plant"
 
 # Color output
 RED='\033[0;31m'
@@ -104,7 +104,7 @@ check_r2_file() {
 check_dependencies() {
     local missing=0
     
-    if [[ ! -f "${SCRIPT_DIR}/ref_bowtie2/default.1.bt2" ]]; then
+    if [[ ! -f "${SCRIPT_DIR}/ref_plant/default_plant.1.bt2" ]]; then
         log_error "Can not found the bowtie2 genome index file, please go to https://github.com/yudalang3/resolveS download it."
         missing=1
     fi
