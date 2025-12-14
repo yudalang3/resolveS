@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#===============================================================================
+# Script: resolveS_sensitive
+# Description: Wrapper script for resolveS with sensitive reference genome
+# This script calls resolveS with -r parameter set to ../ref_sensitive/default_plant
+#===============================================================================
+
+# Get the DIR of the SCRIPT
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Call resolveS with the sensitive reference genome and pass all other arguments
+exec "${SCRIPT_DIR}/resolveS" -r ../ref_sensitive/default_plant "$@"

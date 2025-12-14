@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Get the DIR of the SCRIPT
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+BOWTIE2_BIN="${SCRIPT_DIR}/../bowtie2/bowtie2"
+
 # Check if input file is provided
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <input_file> <genome_index> [threads] [max_alig_reads]"
@@ -21,15 +25,15 @@ if [ ! -f "$INPUT_FILE" ]; then
     exit 1
 fi
 
-# Check if bowtie2 is available
-if ! command -v bowtie2 &> /dev/null; then
-    echo "Error: bowtie2 is not installed or not in PATH."
+# Check if bowtie2 binary exists
+if [ ! -f "$BOWTIE2_BIN" ]; then
+    echo "Error: bowtie2 binary not found at $BOWTIE2_BIN"
     exit 1
 fi
 
 
 # Run bowtie2 alignment
-bowtie2 -p "$THREADS" \
+"$BOWTIE2_BIN" -p "$THREADS" \
   -u "$MAX_ALIG_READS" \
   -x "$G_INDEX" \
   -U "$INPUT_FILE" \

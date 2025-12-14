@@ -9,19 +9,54 @@
 
 resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快速、低内存占用**且用户友好,是任何 RNA-Seq 质量控制(QC)流程的完美补充。无论您是探索公共数据还是验证自己的文库,resolveS 都能提供必要的元数据,确保下游分析的准确性和可重复性。
 
-# 安装说明 & 当前版本
+# 安装说明 & 使用指导
 
 首先，请从 **releases** 部分下载压缩包文件。根据您现有的环境，按照以下说明进行软件安装。
-
-如果 `./resolveS` 文件已经是可执行的，您可以跳过下一步。否则，您需要通过在终端中运行以下命令使其可执行：
-
-```bash
-chmod +x ./resolveS ./count_sam.sh ./check_strand.py ./align_by_bowtie2.sh
-```
 
 请参阅 $ resolveS -h 以获取有关版本和用法的更多信息。
 
 ---
+
+## 1. 开箱即用：一站式服务
+
+如果您偏好 `一步到位的解决方案`，不想安装任何依赖，任何环境都想直接能运行。
+
+那么就下载`resolveS_singularity_v0.0.x.sif` 或者 ` resolveS_apptainer_v0.0.x.sif`。这是一套即用型且省时的 `解决方案`。无需安装任何东西！
+
+如果你希望得到的软件是直接能用。不想按照任何复杂的依赖
+
+```bash
+# 在容器内运行默认命令
+singularity run /path/to/resolveS_singularity_v0.0.1.sif -s 1_fastq.gz
+#### Or ####
+# 在容器内直接执行 'resolveS' 命令
+singularity exec resolveS_v0.0.1.sif resolveS
+```
+
+
+## 2. 绿色免安装版本 portable_program
+
+如果您不想了解容器的使用，想直接使用软件，且不想安装任何依赖，可以使用免安装版本。
+
+那么就下载 `portable_program_v0.0.x.tar.gz`，然后解压 `tar -xvf ...`
+
+得到一下的程序
+
+```
+resolveS/
+├── align_by_bowtie2.sh
+├── check_strand.py
+├── count_sam.sh
+├── ref_bowtie2
+│   ├── default.1.bt2
+│   ├── default.2.bt2
+│   ├── default.3.bt2
+│   ├── default.4.bt2
+│   ├── default.rev.1.bt2
+│   └── default.rev.2.bt2
+└── resolveS
+
+
 
 ## 1. 如果您已安装 **Bowtie 2** 和 **Python 3**
 

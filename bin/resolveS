@@ -19,9 +19,9 @@ METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
 MAX_ALIG_READS=1000000
+REFERENCE_DB="../ref_default/default"
 # Get the DIR of the SCRIPT
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-BOWTIE2_GENOME_INDEX="ref_bowtie2/default"
 
 # Color output
 RED='\033[0;31m'
@@ -44,6 +44,7 @@ Options:
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
     -p <number>     Number of threads to use (default: 6)
     -u <number>     Maximum number of reads to align (default: 1000000)
+    -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -h              Show this help message
 
 Examples:
@@ -104,7 +105,7 @@ check_r2_file() {
 check_dependencies() {
     local missing=0
     
-    if [[ ! -f "${SCRIPT_DIR}/ref_bowtie2/default.1.bt2" ]]; then
+    if [[ ! -f "${SCRIPT_DIR}/${REFERENCE_DB}.1.bt2" ]]; then
         log_error "Can not found the bowtie2 genome index file, please go to https://github.com/yudalang3/resolveS download it."
         missing=1
     fi
@@ -141,7 +142,7 @@ process_single_file() {
     log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads)"
     
     # Run alignment
-    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$BOWTIE2_GENOME_INDEX" "$threads" "$max_alig_reads"
+    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$REFERENCE_DB" "$threads" "$max_alig_reads"
     
     # Get basename for logging
     local fullpath=$(realpath "$input")
@@ -217,7 +218,7 @@ process_batch() {
 #===============================================================================
 
 # Parse command line arguments
-while getopts "s:b:c:p:u:h" opt; do
+while getopts "s:b:c:p:u:r:h" opt; do
     case $opt in
         s)
             MODE="single"
@@ -245,6 +246,9 @@ while getopts "s:b:c:p:u:h" opt; do
                 log_error "Invalid max_alig_reads number: $MAX_ALIG_READS (must be a positive integer)"
                 exit 1
             fi
+            ;;
+        r)
+            REFERENCE_DB="$OPTARG"
             ;;
         h)
             print_usage
