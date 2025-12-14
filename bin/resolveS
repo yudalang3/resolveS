@@ -139,7 +139,7 @@ process_single_file() {
     # Check if file appears to be R2
     check_r2_file "$input"
     
-    log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads)"
+    log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads, reference: $REFERENCE_DB)"
     
     # Run alignment
     "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$REFERENCE_DB" "$threads" "$max_alig_reads"
