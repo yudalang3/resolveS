@@ -20,6 +20,7 @@ OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
 MAX_ALIG_READS=1000000
 REFERENCE_DB="../ref_default/default"
+REFERENCE_DB_IS_DEFAULT=true  # Track if using default value
 # Get the DIR of the SCRIPT
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
@@ -104,9 +105,10 @@ check_r2_file() {
 
 check_dependencies() {
     local missing=0
-    
-    if [[ ! -f "${SCRIPT_DIR}/${REFERENCE_DB}.1.bt2" ]]; then
-        log_error "Can not found the bowtie2 genome index file, please go to https://github.com/yudalang3/resolveS download it."
+
+    if [[ ! -f "${REFERENCE_DB}.1.bt2" ]]; then
+        log_error "Can not found the bowtie2 genome index file: ${REFERENCE_DB}.1.bt2"
+        log_error "Please check your -r parameter or download the default index from https://github.com/yudalang3/resolveS"
         missing=1
     fi
     
@@ -140,9 +142,9 @@ process_single_file() {
     check_r2_file "$input"
     
     log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads, reference: $REFERENCE_DB)"
-    
+
     # Run alignment
-    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "${SCRIPT_DIR}/$REFERENCE_DB" "$threads" "$max_alig_reads"
+    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "$REFERENCE_DB" "$threads" "$max_alig_reads"
     
     # Get basename for logging
     local fullpath=$(realpath "$input")
@@ -249,6 +251,7 @@ while getopts "s:b:c:p:u:r:h" opt; do
             ;;
         r)
             REFERENCE_DB="$OPTARG"
+            REFERENCE_DB_IS_DEFAULT=false  # Mark as user-provided
             ;;
         h)
             print_usage
@@ -261,6 +264,23 @@ while getopts "s:b:c:p:u:r:h" opt; do
             ;;
     esac
 done
+
+# Normalize REFERENCE_DB to absolute path
+if [[ "$REFERENCE_DB" != /* ]]; then
+    # Relative path - convert to absolute path
+    if [[ "$REFERENCE_DB_IS_DEFAULT" == true ]]; then
+        # Default value is relative to script directory
+        REFERENCE_DB="${SCRIPT_DIR}/${REFERENCE_DB}"
+    else
+        # User input is relative to current working directory
+        if [[ -d "$(dirname "$REFERENCE_DB")" ]]; then
+            REFERENCE_DB="$(cd "$(dirname "$REFERENCE_DB")" && pwd)/$(basename "$REFERENCE_DB")"
+        else
+            # Directory doesn't exist yet, construct absolute path manually
+            REFERENCE_DB="$(pwd)/$REFERENCE_DB"
+        fi
+    fi
+fi
 
 # Check if mode is specified
 if [[ -z "$MODE" ]]; then
