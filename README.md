@@ -9,21 +9,90 @@ Accurate determination of strand specificity (stranded vs. non-stranded) is a cr
 
 resolveS is a high-performance tool designed to solve this problem instantly. It is **super-fast, memory-efficient**, and user-friendly, making it the perfect addition to any RNA-Seq Quality Control (QC) pipeline. Whether you are exploring public data or validating your own libraries, resolveS provides the necessary metadata to ensure your downstream analysis is accurate and reproducible.
 
-# Installation & Current Version
+# Installation & Usage Guide
 
-To begin, please download the archive file from the **releases** section. Follow the instructions below based on your existing environment to proceed with the software installation.
+First, please download the archive file from the **releases** section. Follow the instructions below based on your existing environment to proceed with the software installation.
 
-If the `./resolveS` file is executable, you can skip the next step. Otherwise, you need to make it executable by running the following command in the terminal:
-
-```bash
-chmod +x ./resolveS ./count_sam.sh ./check_strand.py ./align_by_bowtie2.sh
-```
-
-Please see the `$ resolveS -h` for more information on the version and usage.
+Please refer to `$ resolveS -h` for more information on the version and usage.
 
 ---
 
-## 1. If you already have **Bowtie 2** and **Python 3** installed
+## 1. Out-of-the-Box: One-Stop Solution
+
+If you prefer a `one-step solution`, don't want to install any dependencies, and want to run directly in any environment.
+
+Then download `resolveS_singularity_v0.0.x.sif` or `resolveS_apptainer_v0.0.x.sif`. This is a ready-to-use and time-saving `solution`. No need to install anything!
+
+If you want software that works out of the box without installing any complex dependencies:
+
+```bash
+# Run the default command within the container
+singularity run /path/to/resolveS_singularity_v0.0.1.sif -s 1_fastq.gz
+#### Or ####
+# Execute the 'resolveS' command directly within the container
+singularity exec resolveS_v0.0.1.sif resolveS
+```
+
+
+## 2. Portable Program Version
+
+If you don't want to learn about containers, want to use the software directly, and don't want to install any dependencies, you can use the portable version.
+
+Then download `portable_program_v0.0.x.tar.gz`, and extract it with `tar -xvf ...`
+
+You will get the following program structure after extraction:
+
+```
+resolveS
+├── LICENSE
+├── README.md
+├── README_zh.md
+├── benchmark
+│   ├── benchmark_test.sh
+│   ├── input.batch.run.txt
+│   └── results.tsv
+├── bin
+│   ├── align_by_bowtie2.sh
+│   ├── check_strand.py
+│   ├── count_sam.sh
+│   ├── resolveS
+│   └── resolveS_sensitive
+├── bowtie2
+```
+
+Usage:
+
+```bash
+./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
+#[INFO] Processing: /home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz (threads: 6, max_alig_reads: 1000000, reference: /mnt/c/Users/yudal/Documents/resolveS/bin/../ref_default/default)
+#ls ~/project/xxx 1000000 reads; of these:
+#  1000000 (100.00%) were unpaired; of these:
+#    991905 (99.19%) aligned 0 times
+#    552 (0.06%) aligned exactly 1 time
+#    7543 (0.75%) aligned >1 times
+#0.81% overall alignment rate
+#File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       F2R_Ratio       Log2_F2R        Rel_Diff        Chi2    P_value Cohens_h   Cramers_V       Bayes_Factor    Epsilon Hellinger       Entropy
+#/home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz    fr-unstranded   4142    3953    8095    0.511674        0.488326        1.047812        0.067371   0.046695        4.412724        3.567184e-02    0.023350        0.023348        7.905134e+00    0.016512        0.008255        0.999607
+#[INFO] Cleaned up temporary file: resolveS.sam
+#[INFO] Cleaned up temporary file: log.raw.SAM.counts.txt
+#[INFO] All done!
+```
+
+Save the results to a text file:
+
+
+```bash
+./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz > results.txt
+cat results.txt
+#File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       F2R_Ratio       Log2_F2R        Rel_Diff        Chi2    P_value Cohens_h   Cramers_V       Bayes_Factor    Epsilon Hellinger       Entropy
+#/home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz    fr-unstranded   4142    3953    8095    0.511674        0.488326        1.047812        0.067371   0.046695        4.412724        3.567184e-02    0.023350        0.023348        7.905134e+00    0.016512        0.008255        0.999607
+```
+
+Finally, the `Strandedness` column is the inferred result.
+
+The `-b` parameter allows batch processing.
+
+## 3. If you already have **Bowtie 2** and **Python 3** installed
 
 Simply extract the downloaded archive. Then, you can directly run the executable file named `resolveS`. If you wish to execute it from any directory, you may add this file to your system's `PATH` environment variable.
 
@@ -49,9 +118,14 @@ resolveS/
 
 ---
 
-## 2. If you prefer using **Conda** / **Mamba**
+## 4. If you prefer using **Conda** / **Mamba**
 
-First, create the required environment using one of the following methods:
+You are already an advanced user. You can check the `bin` directory yourself and modify `align_by_bowtie2.sh` to configure `bowtie2`.
+
+> You also need to download the bowtie2 index files
+
+
+Then follow the general steps:
 
 **Method 1: Create and Activate Environment (Recommended)**
 
@@ -70,25 +144,9 @@ mamba install bioconda::bowtie2
 
 After activating the environment, proceed with the installation steps as described in the section above ("If you already have Bowtie 2 and Python 3 installed").
 
-> You also need to download the bowtie2 index files
 
-## 3. If you prefer `a one-step solution`
 
-This is a ready-to-use and time-saving `solution`. No need to install anything!
-
-We provide a Singularity (or Apptainer) container for ease of use. You can download the image file directly and run it:
-
-> All you need is the Singularity (or Apptainer) container file. DO NOT need to download bowtie2 index anymore.
-
-```bash
-# To run the default command within the container
-singularity run /path/to/resolveS_singularity_v0.0.1.sif -s 1_fastq.gz
-
-# To execute the 'resolveS' command directly within the container
-singularity exec resolveS_v0.0.1.sif resolveS
-```
-
-# Usage and output demonstration
+# Usage and Output Demonstration
 
 Take the `one-step solution` as an example:
 
@@ -134,22 +192,24 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 ```
 
 For the end-user, the `one-step solution` is the most convenient way to use resolveS.
-And you can focus on the `File` and `Strandedness` columns in the output tsv file.
+You can focus on the `File` and `Strandedness` columns in the output TSV file.
 
-# Full program documentation
+# Full Program Documentation
 
-## Parameters explanation
+## Parameters Explanation
 
-### Single file runnning mode:
+### Single file running mode:
 - `-h`, `--help`: Show help message and exit.
 - `-s <file>`: Input fastq file.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align (default: 4000000).
-- `-o <output_file>`: Output file (default: stdout).
+- `-u <number>`: Maximum number of reads to align (default: 1000000).
+- `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
+- `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
 
 ### Batch file running mode:
 - `-h`, `--help`: Show help message and exit.
 - `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align (default: 4000000).
-- `-o <output_file>`: Output file (default: stdout).
+- `-u <number>`: Maximum number of reads to align (default: 1000000).
+- `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
+- `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.

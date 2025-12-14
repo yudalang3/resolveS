@@ -5,9 +5,9 @@
 本工具的目标是"快速检测 RNA-Seq 链特异性"。
 
 
-准确判定链特异性（有链特异性 vs. 无链特异性）是转录组分析的关键前提。它是配置 featureCounts 和 Trinity 等重要生物信息学工具的必要参数。然而,这一信息在公共数据集中往往缺失或标注错误,可能导致结果重现性问题和错误解读。
+准确判定链特异性（有链特异性 vs. 无链特异性）是转录组分析的关键前提。它是配置 featureCounts 和 Trinity 等重要生物信息学工具的必要参数。然而，这一信息在公共数据集中往往缺失或标注错误，可能导致结果重现性问题和错误解读。
 
-resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快速、低内存占用**且用户友好,是任何 RNA-Seq 质量控制(QC)流程的完美补充。无论您是探索公共数据还是验证自己的文库,resolveS 都能提供必要的元数据,确保下游分析的准确性和可重复性。
+resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快速、低内存占用**且用户友好，是任何 RNA-Seq 质量控制（QC）流程的完美补充。无论您是探索公共数据还是验证自己的文库，resolveS 都能提供必要的元数据，确保下游分析的准确性和可重复性。
 
 # 安装说明 & 使用指导
 
@@ -23,7 +23,7 @@ resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快
 
 那么就下载`resolveS_singularity_v0.0.x.sif` 或者 ` resolveS_apptainer_v0.0.x.sif`。这是一套即用型且省时的 `解决方案`。无需安装任何东西！
 
-如果你希望得到的软件是直接能用。不想按照任何复杂的依赖
+如果您希望获得开箱即用的软件，不想安装任何复杂的依赖：
 
 ```bash
 # 在容器内运行默认命令
@@ -40,23 +40,57 @@ singularity exec resolveS_v0.0.1.sif resolveS
 
 那么就下载 `portable_program_v0.0.x.tar.gz`，然后解压 `tar -xvf ...`
 
-得到一下的程序
+得到以下的程序，解压之后的内容如下：
 
 ```
-resolveS/
-├── align_by_bowtie2.sh
-├── check_strand.py
-├── count_sam.sh
-├── ref_bowtie2
-│   ├── default.1.bt2
-│   ├── default.2.bt2
-│   ├── default.3.bt2
-│   ├── default.4.bt2
-│   ├── default.rev.1.bt2
-│   └── default.rev.2.bt2
-└── resolveS
+resolveS
+├── LICENSE
+├── README.md
+├── README_zh.md
+├── benchmark
+│   ├── benchmark_test.sh
+│   ├── input.batch.run.txt
+│   └── results.tsv
+├── bin
+│   ├── align_by_bowtie2.sh
+│   ├── check_strand.py
+│   ├── count_sam.sh
+│   ├── resolveS
+│   └── resolveS_sensitive
+├── bowtie2
+```
+
+使用方法：
+
+```bash
+./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
+#[INFO] Processing: /home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz (threads: 6, max_alig_reads: 1000000, reference: /mnt/c/Users/yudal/Documents/resolveS/bin/../ref_default/default)
+#ls ~/project/xxx 1000000 reads; of these:
+#  1000000 (100.00%) were unpaired; of these:
+#    991905 (99.19%) aligned 0 times
+#    552 (0.06%) aligned exactly 1 time
+#    7543 (0.75%) aligned >1 times
+#0.81% overall alignment rate
+#File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       F2R_Ratio       Log2_F2R        Rel_Diff        Chi2    P_value Cohens_h   Cramers_V       Bayes_Factor    Epsilon Hellinger       Entropy
+#/home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz    fr-unstranded   4142    3953    8095    0.511674        0.488326        1.047812        0.067371   0.046695        4.412724        3.567184e-02    0.023350        0.023348        7.905134e+00    0.016512        0.008255        0.999607
+#[INFO] Cleaned up temporary file: resolveS.sam
+#[INFO] Cleaned up temporary file: log.raw.SAM.counts.txt
+#[INFO] All done!
+```
+
+将结果保存到文本文件中：
 
 
+```bash
+./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz > results.txt
+cat results.txt
+#File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       F2R_Ratio       Log2_F2R        Rel_Diff        Chi2    P_value Cohens_h   Cramers_V       Bayes_Factor    Epsilon Hellinger       Entropy
+#/home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz    fr-unstranded   4142    3953    8095    0.511674        0.488326        1.047812        0.067371   0.046695        4.412724        3.567184e-02    0.023350        0.023348        7.905134e+00    0.016512        0.008255        0.999607
+```
+
+最终，`Strandedness` 一列就是推断的结果。
+
+-b 参数可以批量运行。
 
 ## 1. 如果您已安装 **Bowtie 2** 和 **Python 3**
 
@@ -79,14 +113,18 @@ resolveS/
 │   ├── default.rev.1.bt2
 │   └── default.rev.2.bt2
 └── resolveS
-
 ```
 
 ---
 
-## 2. 如果您偏好使用 **Conda** / **Mamba**
+## 3. 如果您偏好使用 **Conda** / **Mamba**
 
-首先，使用以下方法之一创建所需的环境：
+您已经是高级用户了，您可以自行查看 `bin` 目录，修改 `align_by_bowtie2.sh` 配置 `bowtie2` 即可。
+
+> 您还需要下载 bowtie2 索引文件
+
+
+然后是一般的步骤：
 
 **方法 1：创建并激活环境（推荐）**
 
@@ -105,23 +143,7 @@ mamba install bioconda::bowtie2
 
 激活环境后，按照上述部分（"如果您已安装 Bowtie 2 和 Python 3"）中描述的安装步骤进行操作。
 
-> 您还需要下载 bowtie2 索引文件
 
-## 3. 如果您偏好 `一步到位的解决方案`
-
-这是一套即用型且省时的 `解决方案`。无需安装任何东西！
-
-我们提供了 Singularity（或 Apptainer）容器以便使用。您可以直接下载镜像文件并运行：
-
-> 您只需要 Singularity（或 Apptainer）容器文件。不再需要下载 bowtie2 索引。
-
-```bash
-# 在容器内运行默认命令
-singularity run /path/to/resolveS_singularity_v0.0.1.sif -s 1_fastq.gz
-
-# 在容器内直接执行 'resolveS' 命令
-singularity exec resolveS_v0.0.1.sif resolveS
-```
 
 # 使用方法和输出演示
 
@@ -179,12 +201,14 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-s <file>`：输入 fastq 文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量（默认：4000000）。
-- `-o <output_file>`：输出文件（默认：stdout）。
+- `-u <number>`：比对的最大 reads 数量（默认：1000000）。
+- `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
+- `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
 
 ### 批量文件运行模式：
 - `-h`, `--help`：显示帮助信息并退出。
 - `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量（默认：4000000）。
-- `-o <output_file>`：输出文件（默认：stdout）。
+- `-u <number>`：比对的最大 reads 数量（默认：1000000）。
+- `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
+- `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
