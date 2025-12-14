@@ -1,3 +1,4 @@
 db/
-ref_bowtie2/
-ref_plant/
+ref_default/
+ref_sensitive/
+bowtie2/
