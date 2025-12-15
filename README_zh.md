@@ -92,7 +92,7 @@ cat results.txt
 
 -b 参数可以批量运行。
 
-## 1. 如果您已安装 **Bowtie 2** 和 **Python 3**
+## 3. 如果您已安装 **Bowtie 2** 和 **Python 3**
 
 只需解压下载的压缩包。然后，您可以直接运行名为 `resolveS` 的可执行文件。如果希望从任何目录执行它，可以将此文件添加到系统的 `PATH` 环境变量中。
 
@@ -117,7 +117,7 @@ resolveS/
 
 ---
 
-## 3. 如果您偏好使用 **Conda** / **Mamba**
+## 4. 如果您偏好使用 **Conda** / **Mamba**
 
 您已经是高级用户了，您可以自行查看 `bin` 目录，修改 `align_by_bowtie2.sh` 配置 `bowtie2` 即可。
 
