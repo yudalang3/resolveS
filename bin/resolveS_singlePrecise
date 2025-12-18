@@ -124,8 +124,8 @@ check_dependencies() {
         missing=1
     fi
     
-    if [[ ! -f "${SCRIPT_DIR}/check_strand_step1M.py" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/check_strand_step1M.py"
+    if [[ ! -f "${SCRIPT_DIR}/check_strand_step1M_withCount.py" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/check_strand_step1M_withCount.py"
         missing=1
     fi
     
@@ -259,7 +259,7 @@ process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS" "$
 
 # Step 3: Run incremental strand analysis
 log_info "Step 3: Analyzing strandedness for each 1M increment..."
-python3 ${SCRIPT_DIR}/check_strand_step1M.py $OUTPUT_FILE
+python3 ${SCRIPT_DIR}/check_strand_step1M_withCount.py $OUTPUT_FILE
 
 # Clean up
 if [[ -f resolveS.sam ]]; then
