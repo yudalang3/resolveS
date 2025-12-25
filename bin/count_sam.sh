@@ -28,6 +28,7 @@ fi
 
 # --- Awk Command Execution ---
 # Compatible with both mawk and gawk using modulo operations
+# Filter reads with MAPQ > 20 for reliable alignments
 awk '
 BEGIN {
     total = 0;
@@ -36,9 +37,11 @@ BEGIN {
     unmapped = 0;
     sec = 0;
     supp = 0;
+    low_mapq = 0;
 }
 !/^@/ {
     flag = $2
+    mapq = $5
     total++
     
     # Check if bit 0x4 (unmapped) is set
@@ -59,6 +62,12 @@ BEGIN {
         next
     }
     
+    # Filter by MAPQ > 20 for reliable alignments
+    if (mapq <= 20) {
+        low_mapq++
+        next
+    }
+    
     # Check if bit 0x10 (reverse strand) is set
     if (int(flag / 16) % 2 == 1)
         rev++
@@ -66,7 +75,7 @@ BEGIN {
         fwd++
 }
 END {
-    printf "%s %s %s %s %s %s ", total, fwd, rev, unmapped, sec, supp
+    printf "%s %s %s %s %s %s %s ", total, fwd, rev, unmapped, sec, supp, low_mapq
 }' "$INPUT_FILE" >> "$OUTPUT_FILE"
 
 echo $INDEX_STR >> "$OUTPUT_FILE"
