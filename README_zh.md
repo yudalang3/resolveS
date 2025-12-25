@@ -201,7 +201,7 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-s <file>`：输入 fastq 文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量（默认：1000000）。
+- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1，即 1M reads）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
 
@@ -209,6 +209,6 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量（默认：1000000）。
+- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1，即 1M reads）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。

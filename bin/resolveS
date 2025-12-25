@@ -18,7 +18,8 @@ INPUT_FILE=""
 METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
-MAX_ALIG_READS=1000000
+MAX_ALIG_READS=1
+MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
 REFERENCE_DB_IS_DEFAULT=true  # Track if using default value
 # Get the DIR of the SCRIPT
@@ -44,7 +45,7 @@ Options:
     -b <file>       Batch mode: process multiple files from metadata file
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
     -p <number>     Number of threads to use (default: 6)
-    -u <number>     Maximum number of reads to align (default: 1000000)
+    -u <number>     Maximum number of reads to align, in millions (default: 1, i.e. 1M reads)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -h              Show this help message
 
@@ -56,7 +57,7 @@ Examples:
     $0 -b metadata.txt -p 8
     
     # Limit alignment to 2 million reads
-    $0 -s sample_1.fastq -u 2000000
+    $0 -s sample_1.fastq -u 2
 
 IMPORTANT: Please input the R1 (first read) fastq file only.
            File names should contain patterns like: *_1.fastq, *_1.fq, *_1.fq.gz, *_R1.fastq, etc.
@@ -141,7 +142,7 @@ process_single_file() {
     # Check if file appears to be R2
     check_r2_file "$input"
     
-    log_info "Processing: $input (threads: $threads, max_alig_reads: $max_alig_reads, reference: $REFERENCE_DB)"
+    log_info "Processing: $input (threads: $threads, max_reads: ${MAX_ALIG_READS}M, reference: $REFERENCE_DB)"
 
     # Step 1: Run alignment
     "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "$REFERENCE_DB" "$threads" "$max_alig_reads"
@@ -180,7 +181,7 @@ process_batch() {
     local success=0
     local failed=0
     
-    log_info "Starting batch processing of $total_lines files (threads: $threads, max_alig_reads: $max_alig_reads)"
+    log_info "Starting batch processing of $total_lines files (threads: $threads, max_reads: ${MAX_ALIG_READS}M)"
     
     while IFS= read -r input_file || [[ -n "$input_file" ]]; do
         # Skip empty lines
@@ -245,9 +246,10 @@ while getopts "s:b:c:p:u:r:h" opt; do
             MAX_ALIG_READS="$OPTARG"
             # Validate max_alig_reads number
             if ! [[ "$MAX_ALIG_READS" =~ ^[0-9]+$ ]] || [[ "$MAX_ALIG_READS" -lt 1 ]]; then
-                log_error "Invalid max_alig_reads number: $MAX_ALIG_READS (must be a positive integer)"
+                log_error "Invalid -u value: $MAX_ALIG_READS (must be a positive integer, unit: millions)"
                 exit 1
             fi
+            MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
             ;;
         r)
             REFERENCE_DB="$OPTARG"
@@ -299,14 +301,14 @@ case $MODE in
             log_error "Input file not specified for single mode"
             exit 1
         fi
-        process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS"
+        process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
         ;;
     batch)
         if [[ -z "$METADATA_FILE" ]]; then
             log_error "Metadata file not specified for batch mode"
             exit 1
         fi
-        process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS"
+        process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
         ;;
 esac
 

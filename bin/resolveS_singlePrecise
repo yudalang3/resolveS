@@ -5,7 +5,7 @@
 # Description: Precise strandedness determination for a single sample
 #              Uses 8M reads and provides incremental analysis at each 1M reads
 # Usage: 
-#   ./resolveS_singlePrecise -s <input_file> [-o <output_file>] [-uM <millions>]
+#   ./resolveS_singlePrecise -s <input_file> [-u <millions>]
 #===============================================================================
 export PS4='+ ${BASH_SOURCE}:${LINENO}: '
 #set -x
@@ -45,7 +45,7 @@ Options:
     -s <file>       Input file: process one input file (required)
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt)
     -p <number>     Number of threads to use (default: 6)
-    -uM <number>    Maximum number of millions of reads to align (default: 8)
+    -u <number>     Maximum number of millions of reads to align (default: 8)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -h              Show this help message
 
@@ -54,7 +54,7 @@ Examples:
     $0 -s sample_1.fastq
     
     # Use 10 million reads for more precise determination
-    $0 -s sample_1.fastq -uM 10
+    $0 -s sample_1.fastq -u 10
     
     # Specify reference genome
     $0 -s sample_1.fastq -r /path/to/genome/index
@@ -171,7 +171,7 @@ process_single_file() {
 #===============================================================================
 
 # Parse command line arguments
-while getopts "s:c:p:r:h" opt; do
+while getopts "s:c:p:r:u:h" opt; do
     case $opt in
         s)
             INPUT_FILE="$OPTARG"
@@ -191,6 +191,15 @@ while getopts "s:c:p:r:h" opt; do
             REFERENCE_DB="$OPTARG"
             REFERENCE_DB_IS_DEFAULT=false  # Mark as user-provided
             ;;
+        u)
+            MAX_MILLIONS="$OPTARG"
+            # Validate max millions number
+            if ! [[ "$MAX_MILLIONS" =~ ^[0-9]+$ ]] || [[ "$MAX_MILLIONS" -lt 1 ]]; then
+                log_error "Invalid value for -u: $MAX_MILLIONS (must be a positive integer)"
+                exit 1
+            fi
+            MAX_ALIG_READS=$((MAX_MILLIONS * 1000000))
+            ;;
         h)
             print_usage
             exit 0
@@ -203,29 +212,7 @@ while getopts "s:c:p:r:h" opt; do
     esac
 done
 
-# Shift to handle remaining arguments for -uM (since getopts doesn't handle multi-char options)
 shift $((OPTIND-1))
-
-# Parse remaining arguments for -uM
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -uM)
-            if [[ -n "$2" ]] && [[ "$2" =~ ^[0-9]+$ ]]; then
-                MAX_MILLIONS="$2"
-                MAX_ALIG_READS=$((MAX_MILLIONS * 1000000))
-                shift 2
-            else
-                log_error "Invalid value for -uM: $2 (must be a positive integer)"
-                exit 1
-            fi
-            ;;
-        *)
-            log_error "Unknown argument: $1"
-            print_usage
-            exit 1
-            ;;
-    esac
-done
 
 # Normalize REFERENCE_DB to absolute path
 if [[ "$REFERENCE_DB" != /* ]]; then

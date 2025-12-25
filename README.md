@@ -202,7 +202,7 @@ You can focus on the `File` and `Strandedness` columns in the output TSV file.
 - `-h`, `--help`: Show help message and exit.
 - `-s <file>`: Input fastq file.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align (default: 1000000).
+- `-u <number>`: Maximum number of reads to align, in millions (default: 1, i.e. 1M reads).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
 
@@ -210,6 +210,6 @@ You can focus on the `File` and `Strandedness` columns in the output TSV file.
 - `-h`, `--help`: Show help message and exit.
 - `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align (default: 1000000).
+- `-u <number>`: Maximum number of reads to align, in millions (default: 1, i.e. 1M reads).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
