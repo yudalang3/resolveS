@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #===============================================================================
-# Script: estimate_strand.sh
-# Description: Estimate strand information for NGS data
+# Script: resolveS_fast
+# Description: Fast version of resolveS using count_sam_primary.sh
 # Usage: 
-#   Single file mode: ./estimate_strand.sh -s <input_file> [-o <output_file>]
-#   Batch mode: ./estimate_strand.sh -b <metadata_file> [-o <output_file>]
+#   Single file mode: ./resolveS_fast -s <input_file> [-o <output_file>]
+#   Batch mode: ./resolveS_fast -b <metadata_file> [-o <output_file>]
 #===============================================================================
 export PS4='+ ${BASH_SOURCE}:${LINENO}: '
 #set -x
@@ -18,7 +18,7 @@ INPUT_FILE=""
 METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
-MAX_ALIG_READS=10
+MAX_ALIG_READS=1
 MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
 REFERENCE_DB_IS_DEFAULT=true  # Track if using default value
@@ -37,7 +37,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.0.8
+This is resolveS_fast version 0.0.8
 Usage: $0 [OPTIONS]
 
 Options:
@@ -45,7 +45,7 @@ Options:
     -b <file>       Batch mode: process multiple files from metadata file
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
     -p <number>     Number of threads to use (default: 6)
-    -u <number>     Maximum number of reads to align, in millions (default: 10, i.e. 10M reads)
+    -u <number>     Maximum number of reads to align, in millions (default: 1, i.e. 1M reads)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -h              Show this help message
 
@@ -118,8 +118,8 @@ check_dependencies() {
         missing=1
     fi
  
-    if [[ ! -f "${SCRIPT_DIR}/count_sam_primary_unique.sh" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/count_sam_primary_unique.sh"
+    if [[ ! -f "${SCRIPT_DIR}/count_sam_primary.sh" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/count_sam_primary.sh"
         missing=1
     fi
     
@@ -152,7 +152,7 @@ process_single_file() {
     local base_name=$(basename "$fullpath")
     
     # Step2: Count SAM file with thread parameter
-    "${SCRIPT_DIR}/count_sam_primary_unique.sh" resolveS.sam "$output" "$fullpath"
+    "${SCRIPT_DIR}/count_sam_primary.sh" resolveS.sam "$output" "$fullpath"
     
    
     # Display results
@@ -328,4 +328,3 @@ fi
 log_info "All done!"
 
 exit 0
-

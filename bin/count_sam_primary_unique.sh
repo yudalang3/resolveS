@@ -29,6 +29,7 @@ fi
 
 # --- Awk Command Execution ---
 # Compatible with both mawk and gawk using modulo operations
+# Filter reads with MAPQ > 20 for reliable alignments
 awk '
 BEGIN {
     total = 0;
@@ -59,6 +60,12 @@ BEGIN {
     # Check if bit 0x800 (supplementary) is set
     if (int(flag / 2048) % 2 == 1) {
         supp++
+        next
+    }
+    
+    # Filter by MAPQ > 20 for reliable alignments
+    if (mapq < 20) {s
+        low_mapq++
         next
     }
     

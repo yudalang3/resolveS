@@ -1,6 +1,9 @@
 #!/bin/bash
 
-tar -cvJf resolveS_portable_v0.0.6.tar.xz \
+VERSION="0.0.8"
+
+#tar -cvJf "resolveS_portable_v${VERSION}.tar.xz" \
+tar -cvf "resolveS_portable_v${VERSION}.tar" \
     --exclude='resolveS/db' \
     --exclude='resolveS/docs' \
     --exclude='resolveS/.git' \
