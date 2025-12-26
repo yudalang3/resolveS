@@ -54,9 +54,12 @@ resolveS
 ├── bin
 │   ├── align_by_bowtie2.sh
 │   ├── check_strand.py
-│   ├── count_sam.sh
+│   ├── count_sam_primary.sh
+│   ├── count_sam_primary_unique.sh
 │   ├── resolveS
-│   └── resolveS_sensitive
+│   ├── resolveS_fast
+│   ├── resolveS_sensitive
+│   └── resolveS_singlePrecise
 ├── bowtie2
 ```
 
@@ -92,6 +95,17 @@ Finally, the `Strandedness` column is the inferred result.
 
 The `-b` parameter allows batch processing.
 
+## Script Variants
+
+resolveS provides multiple script variants for different use cases:
+
+| Script | Description | Default -u | Counting Method |
+|--------|-------------|------------|------------------|
+| `resolveS` | Default version with unique alignment filtering | 10M | count_sam_primary_unique.sh |
+| `resolveS_fast` | Fast version for quick analysis | 1M | count_sam_primary.sh |
+| `resolveS_sensitive` | Sensitive mode with plant reference genome | 10M | (wrapper for resolveS) |
+| `resolveS_singlePrecise` | Precise mode with incremental analysis | - | count_sam_primary_unique.sh |
+
 ## 3. If you already have **Bowtie 2** and **Python 3** installed
 
 Simply extract the downloaded archive. Then, you can directly run the executable file named `resolveS`. If you wish to execute it from any directory, you may add this file to your system's `PATH` environment variable.
@@ -104,7 +118,8 @@ The final program structure should be as follows:
 resolveS/
 ├── align_by_bowtie2.sh
 ├── check_strand.py
-├── count_sam.sh
+├── count_sam_primary.sh
+├── count_sam_primary_unique.sh
 ├── ref_bowtie2
 │   ├── default.1.bt2
 │   ├── default.2.bt2
@@ -202,7 +217,7 @@ You can focus on the `File` and `Strandedness` columns in the output TSV file.
 - `-h`, `--help`: Show help message and exit.
 - `-s <file>`: Input fastq file.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align, in millions (default: 1, i.e. 1M reads).
+- `-u <number>`: Maximum number of reads to align, in millions (default: 10 for resolveS, 1 for resolveS_fast).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
 
@@ -210,6 +225,6 @@ You can focus on the `File` and `Strandedness` columns in the output TSV file.
 - `-h`, `--help`: Show help message and exit.
 - `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align, in millions (default: 1, i.e. 1M reads).
+- `-u <number>`: Maximum number of reads to align, in millions (default: 10 for resolveS, 1 for resolveS_fast).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.

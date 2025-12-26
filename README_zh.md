@@ -54,9 +54,12 @@ resolveS
 ├── bin
 │   ├── align_by_bowtie2.sh
 │   ├── check_strand.py
-│   ├── count_sam.sh
+│   ├── count_sam_primary.sh
+│   ├── count_sam_primary_unique.sh
 │   ├── resolveS
-│   └── resolveS_sensitive
+│   ├── resolveS_fast
+│   ├── resolveS_sensitive
+│   └── resolveS_singlePrecise
 ├── bowtie2
 ```
 
@@ -92,6 +95,17 @@ cat results.txt
 
 -b 参数可以批量运行。
 
+## 脚本变体
+
+resolveS 提供多个脚本变体以适应不同的使用场景：
+
+| 脚本 | 描述 | 默认 -u | 计数方法 |
+|--------|------|------------|------------------|
+| `resolveS` | 默认版本，使用唯一比对过滤 | 10M | count_sam_primary_unique.sh |
+| `resolveS_fast` | 快速版本，用于快速分析 | 1M | count_sam_primary.sh |
+| `resolveS_sensitive` | 敏感模式，使用植物参考基因组 | 10M | (包装 resolveS) |
+| `resolveS_singlePrecise` | 精确模式，递增分析 | - | count_sam_primary_unique.sh |
+
 ## 3. 如果您已安装 **Bowtie 2** 和 **Python 3**
 
 只需解压下载的压缩包。然后，您可以直接运行名为 `resolveS` 的可执行文件。如果希望从任何目录执行它，可以将此文件添加到系统的 `PATH` 环境变量中。
@@ -104,7 +118,8 @@ cat results.txt
 resolveS/
 ├── align_by_bowtie2.sh
 ├── check_strand.py
-├── count_sam.sh
+├── count_sam_primary.sh
+├── count_sam_primary_unique.sh
 ├── ref_bowtie2
 │   ├── default.1.bt2
 │   ├── default.2.bt2
@@ -141,7 +156,7 @@ conda/mamba activate estimate
 mamba install bioconda::bowtie2
 ```
 
-激活环境后，按照上述部分（"如果您已安装 Bowtie 2 和 Python 3"）中描述的安装步骤进行操作。
+激活环境后，按照上述部分（"如果您已安装 Bowtie 2 和 Python 3"）中描述的安装步骤进行操作.
 
 
 
@@ -201,7 +216,7 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-s <file>`：输入 fastq 文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1，即 1M reads）。
+- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：resolveS 为 10，resolveS_fast 为 1）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
 
@@ -209,6 +224,6 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 - `-h`, `--help`：显示帮助信息并退出。
 - `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1，即 1M reads）。
+- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：resolveS 为 10，resolveS_fast 为 1）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。

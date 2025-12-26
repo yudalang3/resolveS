@@ -36,7 +36,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS_singlePrecise version 0.0.8
+This is resolveS_singlePrecise version 0.0.9
 Precise strandedness determination with incremental analysis
 
 Usage: $0 [OPTIONS]
