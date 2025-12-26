@@ -6,9 +6,11 @@ strand bias analysis based on raw counts instead of ratios.
 """
 
 import sys
-import os
 import math
 from typing import List, Tuple, NamedTuple
+
+# Import from check_strand.py
+from check_strand import determine_strandedness, compute_relative_difference
 
 
 class CountBasedStats(NamedTuple):
@@ -102,40 +104,6 @@ def compute_binomial_p(fwd: int, rev: int) -> float:
     return p_value
 
 
-def determine_strandedness(fwd: int, rev: int) -> str:
-    """
-    Determine strandedness based on raw counts
-    
-    Criteria (based on project memory):
-    1. Total > 3000: Ensure statistical reliability
-    2. Rel_Diff > 1: Strand-specific (|Fwd-Rev|/mean > 1)
-    3. Fwd > Rev: fr-firststrand; else fr-secondstrand
-    
-    Args:
-        fwd: Forward strand count
-        rev: Reverse strand count
-    
-    Returns:
-        Strandedness type
-    """
-    total = fwd + rev
-    
-    if total <= 3000:
-        return 'insufficient-data'
-    
-    # Relative difference based on raw counts
-    mean = total / 2.0
-    rel_diff = abs(fwd - rev) / mean
-    
-    if rel_diff <= 1:
-        return 'fr-unstranded'
-    
-    if fwd > rev:
-        return 'fr-firststrand'
-    else:
-        return 'fr-secondstrand'
-
-
 def analyze_counts(fwd: int, rev: int, label: str) -> CountBasedStats:
     """
     Analyze strand bias using raw counts
@@ -153,7 +121,10 @@ def analyze_counts(fwd: int, rev: int, label: str) -> CountBasedStats:
     log2_fc = compute_log2_fc(fwd, rev)
     chi2, p_value = compute_chi2_test(fwd, rev)
     binomial_p = compute_binomial_p(fwd, rev)
-    strandedness = determine_strandedness(fwd, rev)
+    
+    # Use imported functions from check_strand.py
+    relative_diff = compute_relative_difference(fwd, rev)
+    strandedness = determine_strandedness(total, relative_diff)
     
     return CountBasedStats(
         reads_count=label,

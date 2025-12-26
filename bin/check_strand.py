@@ -13,9 +13,10 @@ class StrandStats:
     """Data class to store all statistics"""
     def __init__(self, filename: str, fwd: int, rev: int,
                  fwd_ratio: float, rev_ratio: float, relative_diff: float,
-                 chi2: float, p_value: float, strandedness: str):
+                 chi2: float, p_value: float, strandedness: str, need_precise: str):
         self.filename = filename
         self.strandedness = strandedness
+        self.need_precise = need_precise
         self.fwd = fwd
         self.rev = rev
         self.fwd_ratio = fwd_ratio
@@ -121,9 +122,35 @@ def determine_strandedness(total: int, relative_diff: float) -> str:
         return 'fr-unstranded'
     
     if relative_diff > 0:
-        return 'fr-firststrand'
-    else:
         return 'fr-secondstrand'
+    else:
+        return 'fr-firststrand'
+
+
+def determine_need_precise(total: int, relative_diff: float) -> str:
+    """
+    Determine if more precise analysis is needed
+    
+    Criteria:
+    1. Total <= 3000: Need precise analysis, return 'T'
+    2. |Rel_Diff| between 0.07156908 and 2/3: Need precise analysis, return 'T'
+    3. Otherwise: return 'F'
+    
+    Args:
+        total: Total count (forward + reverse)
+        relative_diff: Signed relative difference value
+    
+    Returns:
+        'T' if need precise analysis, 'F' otherwise
+    """
+    if total <= 3000:
+        return 'T'
+    
+    abs_diff = abs(relative_diff)
+    if 0.07156908 < abs_diff < 2/3:
+        return 'T'
+    
+    return 'F'
 
 
 def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
@@ -147,6 +174,7 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
     
     # Determine strandedness using signed relative difference
     strandedness = determine_strandedness(total, relative_diff)
+    need_precise = determine_need_precise(total, relative_diff)
 
     return StrandStats(
         filename=name,
@@ -157,7 +185,8 @@ def analyze_strand_bias(fwd: int, rev: int, name: str) -> StrandStats:
         relative_diff=relative_diff,
         chi2=chi2,
         p_value=p_value,
-        strandedness=strandedness
+        strandedness=strandedness,
+        need_precise=need_precise
     )
 
 
@@ -209,6 +238,7 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
     headers = [
         "File",
         "Strandedness",
+        "NeedPrecise",
         "Fwd",
         "Rev",
         "Fwd_Ratio",
@@ -224,6 +254,7 @@ def format_stats_table(stats_list: List[StrandStats], sep: str = "\t") -> str:
         row = [
             s.filename,
             s.strandedness,
+            s.need_precise,
             str(s.fwd),
             str(s.rev),
             f"{s.fwd_ratio:.6f}",

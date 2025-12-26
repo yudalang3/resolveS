@@ -4,4 +4,4 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-"$SCRIPT_DIR/count_sam_unique.sh" "$@"
+"$SCRIPT_DIR/count_sam_primary.sh" "$@"
