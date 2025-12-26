@@ -29,7 +29,6 @@ fi
 
 # --- Awk Command Execution ---
 # Compatible with both mawk and gawk using modulo operations
-# Filter reads with MAPQ > 20 for reliable alignments
 awk '
 BEGIN {
     total = 0;
@@ -64,7 +63,7 @@ BEGIN {
     }
     
     # Filter by MAPQ > 20 for reliable alignments
-    if (mapq < 20) {s
+    if (mapq < 3) {s
         low_mapq++
         next
     }
