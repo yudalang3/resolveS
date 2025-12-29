@@ -208,6 +208,60 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 对于最终用户来说，`一步到位的解决方案` 是使用 resolveS 最方便的方式。
 您可以重点关注输出 tsv 文件中的 `File` 和 `Strandedness` 两列。
 
+## 技术细节
+
+### 流程概览
+
+resolveS 封装了 bowtie2 与轻量级的 SAM 计数逻辑，使用有限 reads 快速推断链偏好。
+`bin/` 目录中的默认脚本实现了如下工作流：
+
+```mermaid
+flowchart TD
+    A[输入 FASTQ (R1)] --> B{模式}
+    B -->|单样本 -s| C[resolveS / resolveS_fast / resolveS_sensitive]
+    B -->|批量 -b| D[metadata 列表]
+    D --> C
+    C --> E[align_by_bowtie2.sh<br/>bowtie2 -u MAX_READS -p THREADS -x REF -U FASTQ -S resolveS.sam]
+    E --> F[resolveS.sam]
+    F --> G[count_sam_primary_unique.sh<br/>或 count_sam_primary.sh]
+    G --> H[log.raw.SAM.counts.txt<br/>total fwd rev unmapped sec supp low_mapq file]
+    H --> I[check_strand.py]
+    I --> J[stdout TSV<br/>File / Strandedness / NeedPrecise / stats]
+    J --> K[清理临时 SAM + counts]
+```
+
+实现要点：
+
+- 输入只使用 R1；`-u` 以“百万 reads”为单位限制 bowtie2 的 `-u` 参数。
+- `align_by_bowtie2.sh` 使用指定参考（`-r`）比对并在当前目录写出 `resolveS.sam`。
+- `count_sam_primary_unique.sh`（默认）与 `count_sam_primary.sh` 只统计**主比对**。
+  - 均排除 unmapped (0x4)、secondary (0x100)、supplementary (0x800)。
+  - unique 版本额外过滤低 MAPQ（见 `bin/count_sam_primary_unique.sh`，当前阈值为 `< 3`）。
+- 批量模式会把每个样本的一行计数追加到 counts 文件中，随后 `check_strand.py` 统一处理。
+- 默认输出字段定义在 `bin/check_strand.py` 中（File, Strandedness, NeedPrecise, Fwd, Rev, Fwd_Ratio, Rev_Ratio, Rel_Diff, Chi2, P_value）。
+- `resolveS_singlePrecise` 会配合 `count_sam_1M_increase.sh` 与 `check_strand_step1M_withCount.py` 给出每 1M 的增量结果。
+
+### 判定逻辑（以当前脚本实现为准）
+
+```mermaid
+flowchart TD
+    A[total = fwd + rev] --> B{total <= 3000?}
+    B -->|是| C[insufficient-data]
+    B -->|否| D{|Rel_Diff| <= 0.07156908?}
+    D -->|是| E[fr-unstranded]
+    D -->|否| F{Rel_Diff > 0?}
+    F -->|是| G[fr-secondstrand]
+    F -->|否| H[fr-firststrand]
+```
+
+`bin/check_strand.py` 中的核心公式：
+
+- `Fwd_Ratio = Fwd / (Fwd + Rev)`
+- `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)`（有符号；正值表示正链占优）
+- `Chi2 = (Fwd - E)^2/E + (Rev - E)^2/E`, 其中 `E = (Fwd + Rev)/2`
+- `P_value = erfc(sqrt(Chi2 / 2))`
+- `NeedPrecise = T` 当 `total <= 3000` 或 `0.07156908 < |Rel_Diff| < 2/3`
+
 # 完整程序文档
 
 ## 参数说明

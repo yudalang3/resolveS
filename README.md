@@ -209,6 +209,60 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 For the end-user, the `one-step solution` is the most convenient way to use resolveS.
 You can focus on the `File` and `Strandedness` columns in the output TSV file.
 
+## Technical Details
+
+### Pipeline overview
+
+resolveS wraps bowtie2 and a lightweight SAM counter to infer strand bias from a limited number of reads.
+The default scripts in `bin/` implement the following workflow:
+
+```mermaid
+flowchart TD
+    A[Input FASTQ (R1)] --> B{Mode}
+    B -->|single -s| C[resolveS / resolveS_fast / resolveS_sensitive]
+    B -->|batch -b| D[metadata list]
+    D --> C
+    C --> E[align_by_bowtie2.sh<br/>bowtie2 -u MAX_READS -p THREADS -x REF -U FASTQ -S resolveS.sam]
+    E --> F[resolveS.sam]
+    F --> G[count_sam_primary_unique.sh<br/>or count_sam_primary.sh]
+    G --> H[log.raw.SAM.counts.txt<br/>total fwd rev unmapped sec supp low_mapq file]
+    H --> I[check_strand.py]
+    I --> J[stdout TSV<br/>File / Strandedness / NeedPrecise / stats]
+    J --> K[cleanup temp SAM + counts]
+```
+
+Key implementation details:
+
+- Input is R1 only; `-u` limits the number of reads (in millions) passed to bowtie2 via `-u`.
+- `align_by_bowtie2.sh` runs bowtie2 with the selected reference (`-r`) and writes `resolveS.sam` in the working directory.
+- `count_sam_primary_unique.sh` (default) and `count_sam_primary.sh` parse SAM flags and count **primary** alignments only.
+  - Both exclude unmapped (0x4), secondary (0x100), and supplementary (0x800) records.
+  - The unique counter additionally filters low MAPQ alignments (see `bin/count_sam_primary_unique.sh`, current threshold is `< 3`).
+- Batch mode appends one line per sample to the counts file, then `check_strand.py` processes all lines.
+- The default output fields are defined in `bin/check_strand.py` (File, Strandedness, NeedPrecise, Fwd, Rev, Fwd_Ratio, Rev_Ratio, Rel_Diff, Chi2, P_value).
+- `resolveS_singlePrecise` uses `count_sam_1M_increase.sh` and `check_strand_step1M_withCount.py` to report per-1M increments.
+
+### Decision logic (current script implementation)
+
+```mermaid
+flowchart TD
+    A[total = fwd + rev] --> B{total <= 3000?}
+    B -->|yes| C[insufficient-data]
+    B -->|no| D{|Rel_Diff| <= 0.07156908?}
+    D -->|yes| E[fr-unstranded]
+    D -->|no| F{Rel_Diff > 0?}
+    F -->|yes| G[fr-secondstrand]
+    F -->|no| H[fr-firststrand]
+```
+
+Core formulas in `bin/check_strand.py`:
+
+- `Fwd_Ratio = Fwd / (Fwd + Rev)`
+- `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)` (signed; positive = forward-biased)
+- `Chi2 = (Fwd - E)^2/E + (Rev - E)^2/E`, where `E = (Fwd + Rev)/2`
+- `P_value = erfc(sqrt(Chi2 / 2))`
+- `NeedPrecise = T` when `total <= 3000` or `0.07156908 < |Rel_Diff| < 2/3`
+
 # Full Program Documentation
 
 ## Parameters Explanation

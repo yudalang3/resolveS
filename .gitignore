@@ -5,3 +5,5 @@ bowtie2/
 ref_bowtie2/
 
 bin/__pycache__/
+
+.vscode/
