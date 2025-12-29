@@ -47,12 +47,14 @@ BEGIN {
 }
 !/^@/ {
     flag = $2
-    total++
 
     # Only process R1 (first in pair, bit 0x40)
     if (int(flag / 64) % 2 != 1) {
         next
     }
+
+    # Count total R1 reads only
+    total++
 
     # Check if unmapped (bit 0x4)
     if (int(flag / 4) % 2 == 1) {

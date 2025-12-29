@@ -40,8 +40,13 @@ if [ ! -f "$BOWTIE2_BIN" ]; then
 fi
 
 # Run bowtie2 paired-end alignment
+# --no-sq: do not output @SQ headers
+# --no-mixed: suppress unpaired alignments for paired reads
+# --no-discordant: suppress discordant alignments for paired reads
+# This ensures only concordant pairs (both mates mapped correctly) are output
 "$BOWTIE2_BIN" -p "$THREADS" \
-  -u "$MAX_ALIG_READS" \
+  -u "$MAX_ALIG_READS" --no-sq \
+  --no-mixed --no-discordant \
   -x "$G_INDEX" \
   -1 "$READ1" \
   -2 "$READ2" \

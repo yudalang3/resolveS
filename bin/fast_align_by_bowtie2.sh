@@ -34,7 +34,7 @@ fi
 
 # Run bowtie2 alignment
 "$BOWTIE2_BIN" -p "$THREADS" \
-  -u "$MAX_ALIG_READS" \
+  -u "$MAX_ALIG_READS" --no-sq \
   -x "$G_INDEX" \
   -U "$INPUT_FILE" \
   -S resolveS.sam
