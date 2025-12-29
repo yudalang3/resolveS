@@ -52,21 +52,27 @@ resolveS
 │   ├── input.batch.run.txt
 │   └── results.tsv
 ├── bin
-│   ├── align_by_bowtie2.sh
-│   ├── check_strand.py
-│   ├── count_sam_primary.sh
-│   ├── count_sam_primary_unique.sh
-│   ├── resolveS
-│   ├── resolveS_fast
-│   ├── resolveS_sensitive
-│   └── resolveS_singlePrecise
+│   ├── resolveS                  # Default (paired-end)
+│   ├── resolveS_fast             # Fast (single-end)
+│   ├── resolveS_singlePrecise    # Precise (paired-end, 10M)
+│   ├── default_align_by_bowtie2.sh
+│   ├── default_count_sam_primary.sh
+│   ├── fast_align_by_bowtie2.sh
+│   ├── fast_count_sam_primary.sh
+│   ├── fast_check_strand.py
+│   ├── precise_count_sam_1M_increase.sh
+│   └── precise_check_strand_step1M_withCount.py
 ├── bowtie2
 ```
 
 Usage:
 
 ```bash
-./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
+# Default version (paired-end)
+./resolveS/bin/resolveS -1 ~/project/xxxx/0h_1A/0h_1A_R1.fq.gz -2 ~/project/xxxx/0h_1A/0h_1A_R2.fq.gz
+
+# Fast version (single-end, for quick analysis)
+./resolveS/bin/resolveS_fast -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
 #[INFO] Processing: /home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz (threads: 6, max_alig_reads: 1000000, reference: /mnt/c/Users/yudal/Documents/resolveS/bin/../ref_default/default)
 #ls ~/project/xxx 1000000 reads; of these:
 #  1000000 (100.00%) were unpaired; of these:
@@ -99,12 +105,35 @@ The `-b` parameter allows batch processing.
 
 resolveS provides multiple script variants for different use cases:
 
-| Script | Description | Default -u | Counting Method |
-|--------|-------------|------------|------------------|
-| `resolveS` | Default version with unique alignment filtering | 10M | count_sam_primary_unique.sh |
-| `resolveS_fast` | Fast version for quick analysis | 1M | count_sam_primary.sh |
-| `resolveS_sensitive` | Sensitive mode with plant reference genome | 10M | (wrapper for resolveS) |
-| `resolveS_singlePrecise` | Precise mode with incremental analysis | - | count_sam_primary_unique.sh |
+| Script | Description | Input Mode | Default -u | Counting Method |
+|--------|-------------|------------|------------|------------------|
+| `resolveS` | Default version using paired-end alignment | `-1 R1.fq -2 R2.fq` | 1M | default_count_sam_primary.sh (proper pair) |
+| `resolveS_fast` | Fast version using single-end alignment | `-s R1.fq` | 1M | fast_count_sam_primary.sh |
+| `resolveS_singlePrecise` | Precise mode with 1M incremental analysis | `-1 R1.fq -2 R2.fq` | 10M | precise_count_sam_1M_increase.sh |
+
+### Script Dependencies
+
+```
+bin/
+├── resolveS                              # Default (paired-end, 1M)
+├── default_align_by_bowtie2.sh           # Paired-end alignment (shared)
+├── default_count_sam_primary.sh          # Proper pair counting
+│
+├── resolveS_singlePrecise                # Precise (paired-end, 10M, 1M increments)
+├── precise_count_sam_1M_increase.sh      # 1M incremental counting
+├── precise_check_strand_step1M_withCount.py  # Incremental analysis
+│
+├── resolveS_fast                         # Fast (single-end, 1M)
+├── fast_align_by_bowtie2.sh              # Single-end alignment
+├── fast_count_sam_primary.sh             # Primary alignment counting
+├── fast_check_strand.py                  # Strand analysis (shared)
+│
+└── oldbin/                               # Legacy versions
+```
+
+**Shared components:**
+- `resolveS` and `resolveS_singlePrecise` share `default_align_by_bowtie2.sh`
+- `precise_check_strand_step1M_withCount.py` imports functions from `fast_check_strand.py`
 
 ## 3. If you already have **Bowtie 2** and **Python 3** installed
 
@@ -211,51 +240,67 @@ You can focus on the `File` and `Strandedness` columns in the output TSV file.
 
 ## Technical Details
 
-### Pipeline overview
+### Pipeline overview (Default: resolveS)
 
-resolveS wraps bowtie2 and a lightweight SAM counter to infer strand bias from a limited number of reads.
-The default scripts in `bin/` implement the following workflow:
+The default `resolveS` uses **paired-end alignment** for more accurate strand detection:
 
 ```mermaid
 flowchart TD
-    A[Input FASTQ (R1)] --> B{Mode}
-    B -->|single -s| C[resolveS / resolveS_fast / resolveS_sensitive]
-    B -->|batch -b| D[metadata list]
-    D --> C
-    C --> E[align_by_bowtie2.sh<br/>bowtie2 -u MAX_READS -p THREADS -x REF -U FASTQ -S resolveS.sam]
-    E --> F[resolveS.sam]
-    F --> G[count_sam_primary_unique.sh<br/>or count_sam_primary.sh]
-    G --> H[log.raw.SAM.counts.txt<br/>total fwd rev unmapped sec supp low_mapq file]
-    H --> I[check_strand.py]
-    I --> J[stdout TSV<br/>File / Strandedness / NeedPrecise / stats]
-    J --> K[cleanup temp SAM + counts]
+    A["Input: R1.fq + R2.fq"] --> B["default_align_by_bowtie2.sh"]
+    B --> C["bowtie2 -x REF -1 R1 -2 R2"]
+    C --> D["resolveS.sam"]
+    D --> E["default_count_sam_primary.sh"]
+    E --> F["Filter: Proper Pair + Mapped + Primary"]
+    F --> G["Count R1 strand direction"]
+    G --> H["log.raw.SAM.counts.txt"]
+    H --> I["fast_check_strand.py"]
+    I --> J["Strandedness Result"]
 ```
 
-Key implementation details:
+Key points:
+- Uses **paired-end** alignment (`-1 R1.fq -2 R2.fq`)
+- Only counts R1 reads from **proper pairs** to represent fragments
+- Filters: Mapped (not 0x4) + Primary (not 0x100, 0x800) + Proper Pair (0x2) + First in pair (0x40)
+- Default: 1M read pairs (`-u 1`)
 
-- Input is R1 only; `-u` limits the number of reads (in millions) passed to bowtie2 via `-u`.
-- `align_by_bowtie2.sh` runs bowtie2 with the selected reference (`-r`) and writes `resolveS.sam` in the working directory.
-- `count_sam_primary_unique.sh` (default) and `count_sam_primary.sh` parse SAM flags and count **primary** alignments only.
-  - Both exclude unmapped (0x4), secondary (0x100), and supplementary (0x800) records.
-  - The unique counter additionally filters low MAPQ alignments (see `bin/count_sam_primary_unique.sh`, current threshold is `< 3`).
-- Batch mode appends one line per sample to the counts file, then `check_strand.py` processes all lines.
-- The default output fields are defined in `bin/check_strand.py` (File, Strandedness, NeedPrecise, Fwd, Rev, Fwd_Ratio, Rev_Ratio, Rel_Diff, Chi2, P_value).
-- `resolveS_singlePrecise` uses `count_sam_1M_increase.sh` and `check_strand_step1M_withCount.py` to report per-1M increments.
+### Pipeline overview (Fast: resolveS_fast)
+
+The `resolveS_fast` uses **single-end alignment** for quick analysis:
+
+```mermaid
+flowchart TD
+    A["Input: R1.fq only"] --> B["fast_align_by_bowtie2.sh"]
+    B --> C["bowtie2 -x REF -U R1"]
+    C --> D["resolveS.sam"]
+    D --> E["fast_count_sam_primary.sh"]
+    E --> F["Filter: Mapped + Primary"]
+    F --> G["Count strand direction"]
+    G --> H["log.raw.SAM.counts.txt"]
+    H --> I["fast_check_strand.py"]
+    I --> J["Strandedness Result"]
+```
+
+Key points:
+- Uses **single-end** alignment (`-s R1.fq`)
+- Counts all primary alignments
+- Filters: Mapped (not 0x4) + Primary (not 0x100, 0x800)
+- Default: 1M reads (`-u 1`)
+- Faster but may be less accurate than paired-end mode
 
 ### Decision logic (current script implementation)
 
 ```mermaid
 flowchart TD
-    A[total = fwd + rev] --> B{total <= 3000?}
-    B -->|yes| C[insufficient-data]
-    B -->|no| D{|Rel_Diff| <= 0.07156908?}
-    D -->|yes| E[fr-unstranded]
-    D -->|no| F{Rel_Diff > 0?}
-    F -->|yes| G[fr-secondstrand]
-    F -->|no| H[fr-firststrand]
+    A["total = fwd + rev"] --> B{"total <= 3000?"}
+    B -->|yes| C["insufficient-data"]
+    B -->|no| D{"abs Rel_Diff <= 0.072?"}
+    D -->|yes| E["fr-unstranded"]
+    D -->|no| F{"Rel_Diff > 0?"}
+    F -->|yes| G["fr-secondstrand"]
+    F -->|no| H["fr-firststrand"]
 ```
 
-Core formulas in `bin/check_strand.py`:
+Core formulas in `bin/fast_check_strand.py`:
 
 - `Fwd_Ratio = Fwd / (Fwd + Rev)`
 - `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)` (signed; positive = forward-biased)
@@ -267,18 +312,37 @@ Core formulas in `bin/check_strand.py`:
 
 ## Parameters Explanation
 
-### Single file running mode:
-- `-h`, `--help`: Show help message and exit.
-- `-s <file>`: Input fastq file.
-- `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align, in millions (default: 10 for resolveS, 1 for resolveS_fast).
-- `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
-- `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
+### resolveS / resolveS_singlePrecise (Paired-end mode)
 
-### Batch file running mode:
-- `-h`, `--help`: Show help message and exit.
-- `-b <meta_data_file>`: A meta data file with one column of fastq file paths.
+**Single sample mode:**
+- `-1 <file>`: R1 (first read) fastq file.
+- `-2 <file>`: R2 (second read) fastq file.
 - `-p <int>`: Number of threads (default: 6).
-- `-u <number>`: Maximum number of reads to align, in millions (default: 10 for resolveS, 1 for resolveS_fast).
+- `-u <number>`: Maximum number of read pairs to align, in millions (default: 1 for resolveS, 10 for resolveS_singlePrecise).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
+- `-d`: Debug mode - keep intermediate files (resolveS.sam, counts.txt).
 - `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
+- `-h`: Show help message and exit.
+
+**Batch mode:**
+- `-b <meta_data_file>`: A metadata file with tab-separated R1 and R2 paths per line.
+
+### resolveS_fast (Single-end mode)
+
+**Single file mode:**
+- `-s <file>`: Input fastq file (R1 only).
+- `-p <int>`: Number of threads (default: 6).
+- `-u <number>`: Maximum number of reads to align, in millions (default: 1).
+- `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
+- `-d`: Debug mode - keep intermediate files (resolveS.sam, counts.txt).
+- `-c <file>`: Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option.
+- `-h`: Show help message and exit.
+
+**Batch mode:**
+- `-b <meta_data_file>`: A metadata file with one fastq file path per line.
+
+### Intermediate Files
+
+When using `-d` (debug mode), the following intermediate files are preserved:
+- `resolveS.sam`: The alignment output from bowtie2.
+- `log.raw.SAM.counts.txt` (or custom via `-c`): The counting results before strand analysis.

@@ -22,6 +22,7 @@ MAX_ALIG_READS=1
 MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
 REFERENCE_DB_IS_DEFAULT=true  # Track if using default value
+DEBUG=false  # Debug mode: keep intermediate files
 # Get the DIR of the SCRIPT
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
@@ -37,7 +38,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS_fast version 0.0.9
+This is resolveS_fast version 0.1.1
 Usage: $0 [OPTIONS]
 
 Options:
@@ -47,6 +48,7 @@ Options:
     -p <number>     Number of threads to use (default: 6)
     -u <number>     Maximum number of reads to align, in millions (default: 1, i.e. 1M reads)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
+    -d              Debug mode: keep intermediate files (resolveS.sam, counts.txt)
     -h              Show this help message
 
 Examples:
@@ -221,7 +223,7 @@ process_batch() {
 #===============================================================================
 
 # Parse command line arguments
-while getopts "s:b:c:p:u:r:h" opt; do
+while getopts "s:b:c:p:u:r:dh" opt; do
     case $opt in
         s)
             MODE="single"
@@ -254,6 +256,9 @@ while getopts "s:b:c:p:u:r:h" opt; do
         r)
             REFERENCE_DB="$OPTARG"
             REFERENCE_DB_IS_DEFAULT=false  # Mark as user-provided
+            ;;
+        d)
+            DEBUG=true
             ;;
         h)
             print_usage
@@ -314,15 +319,19 @@ esac
 
 
 python3 ${SCRIPT_DIR}/fast_check_strand.py $OUTPUT_FILE
-# Clean up
-if [[ -f resolveS.sam ]]; then
-    rm resolveS.sam
-    log_info "Cleaned up temporary file: resolveS.sam"
-fi
+# Clean up (skip if debug mode)
+if [[ "$DEBUG" == false ]]; then
+    if [[ -f resolveS.sam ]]; then
+        rm resolveS.sam
+        log_info "Cleaned up temporary file: resolveS.sam"
+    fi
 
-if [[ -f $OUTPUT_FILE ]]; then
-    rm $OUTPUT_FILE
-    log_info "Cleaned up temporary file: $OUTPUT_FILE"
+    if [[ -f $OUTPUT_FILE ]]; then
+        rm $OUTPUT_FILE
+        log_info "Cleaned up temporary file: $OUTPUT_FILE"
+    fi
+else
+    log_info "Debug mode: keeping intermediate files (resolveS.sam, $OUTPUT_FILE)"
 fi
  
 log_info "All done!"

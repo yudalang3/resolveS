@@ -52,21 +52,28 @@ resolveS
 │   ├── input.batch.run.txt
 │   └── results.tsv
 ├── bin
-│   ├── align_by_bowtie2.sh
-│   ├── check_strand.py
-│   ├── count_sam_primary.sh
-│   ├── count_sam_primary_unique.sh
-│   ├── resolveS
-│   ├── resolveS_fast
-│   ├── resolveS_sensitive
-│   └── resolveS_singlePrecise
+├── bin
+│   ├── resolveS                  # 默认版本（双端比对）
+│   ├── resolveS_fast             # 快速版本（单端比对）
+│   ├── resolveS_singlePrecise    # 精确版本（双端，10M）
+│   ├── default_align_by_bowtie2.sh
+│   ├── default_count_sam_primary.sh
+│   ├── fast_align_by_bowtie2.sh
+│   ├── fast_count_sam_primary.sh
+│   ├── fast_check_strand.py
+│   ├── precise_count_sam_1M_increase.sh
+│   └── precise_check_strand_step1M_withCount.py
 ├── bowtie2
 ```
 
 使用方法：
 
 ```bash
-./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
+# 默认版本（双端比对）
+./resolveS/bin/resolveS -1 ~/project/xxxx/0h_1A/0h_1A_R1.fq.gz -2 ~/project/xxxx/0h_1A/0h_1A_R2.fq.gz
+
+# 快速版本（单端比对，用于快速分析）
+./resolveS/bin/resolveS_fast -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz
 #[INFO] Processing: /home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz (threads: 6, max_alig_reads: 1000000, reference: /mnt/c/Users/yudal/Documents/resolveS/bin/../ref_default/default)
 #ls ~/project/xxx 1000000 reads; of these:
 #  1000000 (100.00%) were unpaired; of these:
@@ -85,7 +92,11 @@ resolveS
 
 
 ```bash
-./resolveS/bin/resolveS -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz > results.txt
+# 默认版本（双端比对）
+./resolveS/bin/resolveS -1 ~/project/xxxx/0h_1A/0h_1A_R1.fq.gz -2 ~/project/xxxx/0h_1A/0h_1A_R2.fq.gz
+
+# 快速版本（单端比对，用于快速分析）
+./resolveS/bin/resolveS_fast -s ~/project/xxxx/0h_1A/0h_1A_1.fq.gz > results.txt
 cat results.txt
 #File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       F2R_Ratio       Log2_F2R        Rel_Diff        Chi2    P_value Cohens_h   Cramers_V       Bayes_Factor    Epsilon Hellinger       Entropy
 #/home/dell/project/xxx/0h_1A/0h_1A_1.fq.gz    fr-unstranded   4142    3953    8095    0.511674        0.488326        1.047812        0.067371   0.046695        4.412724        3.567184e-02    0.023350        0.023348        7.905134e+00    0.016512        0.008255        0.999607
@@ -99,12 +110,35 @@ cat results.txt
 
 resolveS 提供多个脚本变体以适应不同的使用场景：
 
-| 脚本 | 描述 | 默认 -u | 计数方法 |
-|--------|------|------------|------------------|
-| `resolveS` | 默认版本，使用唯一比对过滤 | 10M | count_sam_primary_unique.sh |
-| `resolveS_fast` | 快速版本，用于快速分析 | 1M | count_sam_primary.sh |
-| `resolveS_sensitive` | 敏感模式，使用植物参考基因组 | 10M | (包装 resolveS) |
-| `resolveS_singlePrecise` | 精确模式，递增分析 | - | count_sam_primary_unique.sh |
+| 脚本 | 描述 | 输入模式 | 默认 -u | 计数方法 |
+|--------|------|----------|---------|----------|
+| `resolveS` | 默认版本，使用双端比对 | `-1 R1.fq -2 R2.fq` | 1M | default_count_sam_primary.sh (proper pair) |
+| `resolveS_fast` | 快速版本，使用单端比对 | `-s R1.fq` | 1M | fast_count_sam_primary.sh |
+| `resolveS_singlePrecise` | 精确模式，1M 递增分析 | `-1 R1.fq -2 R2.fq` | 10M | precise_count_sam_1M_increase.sh |
+
+### 脚本依赖关系
+
+```
+bin/
+├── resolveS                              # 默认版本（双端，1M）
+├── default_align_by_bowtie2.sh           # 双端比对（共用）
+├── default_count_sam_primary.sh          # Proper pair 计数
+│
+├── resolveS_singlePrecise                # 精确版本（双端，10M，1M递增）
+├── precise_count_sam_1M_increase.sh      # 1M 递增计数
+├── precise_check_strand_step1M_withCount.py  # 递增分析
+│
+├── resolveS_fast                         # 快速版本（单端，1M）
+├── fast_align_by_bowtie2.sh              # 单端比对
+├── fast_count_sam_primary.sh             # Primary 比对计数
+├── fast_check_strand.py                  # 链分析（共用）
+│
+└── oldbin/                               # 旧版本
+```
+
+**共用组件：**
+- `resolveS` 和 `resolveS_singlePrecise` 共用 `default_align_by_bowtie2.sh`
+- `precise_check_strand_step1M_withCount.py` 从 `fast_check_strand.py` 导入函数
 
 ## 3. 如果您已安装 **Bowtie 2** 和 **Python 3**
 
@@ -210,51 +244,67 @@ File    Strandedness    Fwd     Rev     Total   Fwd_Ratio       Rev_Ratio       
 
 ## 技术细节
 
-### 流程概览
+### 流程概览（默认版本：resolveS）
 
-resolveS 封装了 bowtie2 与轻量级的 SAM 计数逻辑，使用有限 reads 快速推断链偏好。
-`bin/` 目录中的默认脚本实现了如下工作流：
+默认的 `resolveS` 使用**双端比对**以获得更准确的链检测：
 
 ```mermaid
 flowchart TD
-    A[输入 FASTQ (R1)] --> B{模式}
-    B -->|单样本 -s| C[resolveS / resolveS_fast / resolveS_sensitive]
-    B -->|批量 -b| D[metadata 列表]
-    D --> C
-    C --> E[align_by_bowtie2.sh<br/>bowtie2 -u MAX_READS -p THREADS -x REF -U FASTQ -S resolveS.sam]
-    E --> F[resolveS.sam]
-    F --> G[count_sam_primary_unique.sh<br/>或 count_sam_primary.sh]
-    G --> H[log.raw.SAM.counts.txt<br/>total fwd rev unmapped sec supp low_mapq file]
-    H --> I[check_strand.py]
-    I --> J[stdout TSV<br/>File / Strandedness / NeedPrecise / stats]
-    J --> K[清理临时 SAM + counts]
+    A["输入: R1.fq + R2.fq"] --> B["default_align_by_bowtie2.sh"]
+    B --> C["bowtie2 -x REF -1 R1 -2 R2"]
+    C --> D["resolveS.sam"]
+    D --> E["default_count_sam_primary.sh"]
+    E --> F["过滤: Proper Pair + Mapped + Primary"]
+    F --> G["统计 R1 链方向"]
+    G --> H["log.raw.SAM.counts.txt"]
+    H --> I["fast_check_strand.py"]
+    I --> J["链特异性结果"]
 ```
 
-实现要点：
+要点：
+- 使用**双端**比对（`-1 R1.fq -2 R2.fq`）
+- 只统计 **proper pairs** 中的 R1 reads 来代表 fragments
+- 过滤条件：Mapped (非 0x4) + Primary (非 0x100, 0x800) + Proper Pair (0x2) + First in pair (0x40)
+- 默认：1M read pairs（`-u 1`）
 
-- 输入只使用 R1；`-u` 以“百万 reads”为单位限制 bowtie2 的 `-u` 参数。
-- `align_by_bowtie2.sh` 使用指定参考（`-r`）比对并在当前目录写出 `resolveS.sam`。
-- `count_sam_primary_unique.sh`（默认）与 `count_sam_primary.sh` 只统计**主比对**。
-  - 均排除 unmapped (0x4)、secondary (0x100)、supplementary (0x800)。
-  - unique 版本额外过滤低 MAPQ（见 `bin/count_sam_primary_unique.sh`，当前阈值为 `< 3`）。
-- 批量模式会把每个样本的一行计数追加到 counts 文件中，随后 `check_strand.py` 统一处理。
-- 默认输出字段定义在 `bin/check_strand.py` 中（File, Strandedness, NeedPrecise, Fwd, Rev, Fwd_Ratio, Rev_Ratio, Rel_Diff, Chi2, P_value）。
-- `resolveS_singlePrecise` 会配合 `count_sam_1M_increase.sh` 与 `check_strand_step1M_withCount.py` 给出每 1M 的增量结果。
+### 流程概览（快速版本：resolveS_fast）
+
+`resolveS_fast` 使用**单端比对**进行快速分析：
+
+```mermaid
+flowchart TD
+    A["输入: 仅 R1.fq"] --> B["fast_align_by_bowtie2.sh"]
+    B --> C["bowtie2 -x REF -U R1"]
+    C --> D["resolveS.sam"]
+    D --> E["fast_count_sam_primary.sh"]
+    E --> F["过滤: Mapped + Primary"]
+    F --> G["统计链方向"]
+    G --> H["log.raw.SAM.counts.txt"]
+    H --> I["fast_check_strand.py"]
+    I --> J["链特异性结果"]
+```
+
+要点：
+- 使用**单端**比对（`-s R1.fq`）
+- 统计所有 primary 比对
+- 过滤条件：Mapped (非 0x4) + Primary (非 0x100, 0x800)
+- 默认：1M reads（`-u 1`）
+- 速度更快，但可能不如双端模式准确
 
 ### 判定逻辑（以当前脚本实现为准）
 
 ```mermaid
 flowchart TD
-    A[total = fwd + rev] --> B{total <= 3000?}
-    B -->|是| C[insufficient-data]
-    B -->|否| D{|Rel_Diff| <= 0.07156908?}
-    D -->|是| E[fr-unstranded]
-    D -->|否| F{Rel_Diff > 0?}
-    F -->|是| G[fr-secondstrand]
-    F -->|否| H[fr-firststrand]
+    A["total = fwd + rev"] --> B{"total <= 3000?"}
+    B -->|是| C["insufficient-data"]
+    B -->|否| D{"abs Rel_Diff <= 0.072?"}
+    D -->|是| E["fr-unstranded"]
+    D -->|否| F{"Rel_Diff > 0?"}
+    F -->|是| G["fr-secondstrand"]
+    F -->|否| H["fr-firststrand"]
 ```
 
-`bin/check_strand.py` 中的核心公式：
+`bin/fast_check_strand.py` 中的核心公式：
 
 - `Fwd_Ratio = Fwd / (Fwd + Rev)`
 - `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)`（有符号；正值表示正链占优）
@@ -266,18 +316,37 @@ flowchart TD
 
 ## 参数说明
 
-### 单文件运行模式：
-- `-h`, `--help`：显示帮助信息并退出。
-- `-s <file>`：输入 fastq 文件。
-- `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：resolveS 为 10，resolveS_fast 为 1）。
-- `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
-- `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
+### resolveS / resolveS_singlePrecise（双端模式）
 
-### 批量文件运行模式：
-- `-h`, `--help`：显示帮助信息并退出。
-- `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
+**单样本模式：**
+- `-1 <file>`：R1（第一读段）fastq 文件。
+- `-2 <file>`：R2（第二读段）fastq 文件。
 - `-p <int>`：线程数（默认：6）。
-- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：resolveS 为 10，resolveS_fast 为 1）。
+- `-u <number>`：比对的最大 read pairs 数量，单位为百万（默认：resolveS 为 1，resolveS_singlePrecise 为 10）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
+- `-d`：调试模式 - 保留中间文件（resolveS.sam, counts.txt）。
 - `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
+- `-h`：显示帮助信息并退出。
+
+**批量模式：**
+- `-b <meta_data_file>`：包含 tab 分隔的 R1 和 R2 路径的元数据文件。
+
+### resolveS_fast（单端模式）
+
+**单文件模式：**
+- `-s <file>`：输入 fastq 文件（仅 R1）。
+- `-p <int>`：线程数（默认：6）。
+- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1）。
+- `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
+- `-d`：调试模式 - 保留中间文件（resolveS.sam, counts.txt）。
+- `-c <file>`：从 SAM 文件输出计数矩阵（默认：log.raw.SAM.counts.txt）调试选项。
+- `-h`：显示帮助信息并退出。
+
+**批量模式：**
+- `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
+
+### 中间文件
+
+使用 `-d`（调试模式）时，以下中间文件会被保留：
+- `resolveS.sam`：bowtie2 的比对输出。
+- `log.raw.SAM.counts.txt`（或通过 `-c` 自定义）：链分析前的计数结果。
