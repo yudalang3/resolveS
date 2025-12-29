@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #===============================================================================
-# Script: estimate_strand.sh
-# Description: Estimate strand information for NGS data
-# Usage: 
-#   Single file mode: ./estimate_strand.sh -s <input_file> [-o <output_file>]
-#   Batch mode: ./estimate_strand.sh -b <metadata_file> [-o <output_file>]
+# Script: resolveS
+# Description: Default version of resolveS using paired-end alignment
+# Usage:
+#   Single file mode: ./resolveS -1 <R1.fq> -2 <R2.fq> [-o <output_file>]
+#   Batch mode: ./resolveS -b <metadata_file> [-o <output_file>]
 #===============================================================================
 export PS4='+ ${BASH_SOURCE}:${LINENO}: '
 #set -x
@@ -14,14 +14,15 @@ set -e
 
 # Default values
 MODE=""
-INPUT_FILE=""
+R1_FILE=""
+R2_FILE=""
 METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
 THREADS=6
-MAX_ALIG_READS=10
+MAX_ALIG_READS=1
 MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
-REFERENCE_DB_IS_DEFAULT=true  # Track if using default value
+REFERENCE_DB_IS_DEFAULT=true
 # Get the DIR of the SCRIPT
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
@@ -37,36 +38,35 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.0.9
+This is resolveS version 0.1.0
 Usage: $0 [OPTIONS]
 
 Options:
-    -s <file>       Single file mode: process one input file
+    -1 <file>       R1 (first read) file for single sample mode
+    -2 <file>       R2 (second read) file for single sample mode
     -b <file>       Batch mode: process multiple files from metadata file
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
     -p <number>     Number of threads to use (default: 6)
-    -u <number>     Maximum number of reads to align, in millions (default: 10, i.e. 10M reads)
+    -u <number>     Maximum number of read pairs to align, in millions (default: 1, i.e. 1M pairs)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -h              Show this help message
 
 Examples:
-    # Single file mode
-    $0 -s sample_1.fastq
-    
+    # Single sample mode (paired-end)
+    $0 -1 sample_R1.fastq -2 sample_R2.fastq
+
     # Batch mode with multiple threads
     $0 -b metadata.txt -p 8
-    
-    # Limit alignment to 2 million reads
-    $0 -s sample_1.fastq -u 2
 
-IMPORTANT: Please input the R1 (first read) fastq file only.
-           File names should contain patterns like: *_1.fastq, *_1.fq, *_1.fq.gz, *_R1.fastq, etc.
-           DO NOT use R2 (second read) files: *_2.fastq, *_2.fq, *_2.fq.gz, *_R2.fastq, etc.
+    # Limit alignment to 2 million read pairs
+    $0 -1 sample_R1.fastq -2 sample_R2.fastq -u 2
 
-Metadata file format (one file path per line):
-    /path/to/sample1_1.fastq
-    /path/to/sample2_1.fq
-    /path/to/sample3_1.fq.gz
+IMPORTANT: This version uses paired-end alignment.
+           For single-end data, use resolveS_fast instead.
+
+Metadata file format (tab-separated: R1_path R2_path):
+    /path/to/sample1_R1.fastq    /path/to/sample1_R2.fastq
+    /path/to/sample2_R1.fq.gz    /path/to/sample2_R2.fq.gz
 
 EOF
 }
@@ -86,24 +86,6 @@ log_error() {
     [[ -n "$message" ]] && echo -e "${RED}[ERROR]${NC} $message" >&2
 }
 
-check_r2_file() {
-    local file="$1"
-    local basename=$(basename "$file")
-    
-    # Check if file appears to be R2 (second read) based on common naming patterns
-    if [[ "$basename" =~ _2\.(fq|fastq)(\.gz)?$ ]] || \
-       [[ "$basename" =~ _R2\.(fq|fastq)(\.gz)?$ ]] || \
-       [[ "$basename" =~ \.2\.(fq|fastq)(\.gz)?$ ]] || \
-       [[ "$basename" =~ _r2\.(fq|fastq)(\.gz)?$ ]]; then
-        log_warn "WARNING: Input file appears to be R2 (second read): $basename"
-        log_warn "         resolveS requires R1 (first read) files for proper strand detection."
-        log_warn "         Please use the corresponding R1 file instead (e.g., *_1.fastq, *_R1.fastq)."
-        # but stil can run
-        #return 1
-    fi
-    return 0
-}
-
 check_dependencies() {
     local missing=0
 
@@ -112,54 +94,55 @@ check_dependencies() {
         log_error "Please check your -r parameter or download the default index from https://github.com/yudalang3/resolveS"
         missing=1
     fi
-    
-    if [[ ! -f "${SCRIPT_DIR}/align_by_bowtie2.sh" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/align_by_bowtie2.sh"
+
+    if [[ ! -f "${SCRIPT_DIR}/default_align_by_bowtie2.sh" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/default_align_by_bowtie2.sh"
         missing=1
     fi
- 
-    if [[ ! -f "${SCRIPT_DIR}/count_sam_primary_unique.sh" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/count_sam_primary_unique.sh"
+
+    if [[ ! -f "${SCRIPT_DIR}/default_count_sam_primary.sh" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/default_count_sam_primary.sh"
         missing=1
     fi
-    
+
+    if [[ ! -f "${SCRIPT_DIR}/fast_check_strand.py" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/fast_check_strand.py"
+        missing=1
+    fi
+
     if [[ $missing -eq 1 ]]; then
         exit 1
     fi
 }
 
-process_single_file() {
-    local input="$1"
-    local output="$2"
-    local threads="$3"
-    local max_alig_reads="$4"
-    
-    if [[ ! -f "$input" ]]; then
-        log_error "Input file not found: $input"
+process_single_sample() {
+    local r1="$1"
+    local r2="$2"
+    local output="$3"
+    local threads="$4"
+    local max_alig_reads="$5"
+
+    if [[ ! -f "$r1" ]]; then
+        log_error "R1 file not found: $r1"
         return 1
     fi
-    
-    # Check if file appears to be R2
-    check_r2_file "$input"
-    
-    log_info "Processing: $input (threads: $threads, max_reads: ${MAX_ALIG_READS}M, reference: $REFERENCE_DB)"
 
-    # Step 1: Run alignment
-    "${SCRIPT_DIR}/align_by_bowtie2.sh" "$input" "$REFERENCE_DB" "$threads" "$max_alig_reads"
-    
-    # Get basename for logging
-    local fullpath=$(realpath "$input")
-    local base_name=$(basename "$fullpath")
-    
-    # Step2: Count SAM file with thread parameter
-    "${SCRIPT_DIR}/count_sam_primary_unique.sh" resolveS.sam "$output" "$fullpath"
-    
-   
-    # Display results
-    #log_info "Results for $basename:"
-    #cat "$output"
-    #echo ""
-    
+    if [[ ! -f "$r2" ]]; then
+        log_error "R2 file not found: $r2"
+        return 1
+    fi
+
+    log_info "Processing paired-end: $r1 + $r2 (threads: $threads, max_pairs: ${MAX_ALIG_READS}M, reference: $REFERENCE_DB)"
+
+    # Step 1: Run paired-end alignment
+    "${SCRIPT_DIR}/default_align_by_bowtie2.sh" "$r1" "$r2" "$REFERENCE_DB" "$threads" "$max_alig_reads"
+
+    # Get basename for logging (use R1 as identifier)
+    local fullpath=$(realpath "$r1")
+
+    # Step2: Count SAM file
+    "${SCRIPT_DIR}/default_count_sam_primary.sh" resolveS.sam "$output" "$fullpath"
+
     return 0
 }
 
@@ -168,64 +151,63 @@ process_batch() {
     local output_file="$2"
     local threads="$3"
     local max_alig_reads="$4"
-    
+
     if [[ ! -f "$metadata" ]]; then
         log_error "Metadata file not found: $metadata"
         exit 1
     fi
-    
+
     # Count non-empty, non-comment lines
     local total_lines=$(grep -v '^[[:space:]]*#' "$metadata" | grep -v '^[[:space:]]*$' | wc -l)
-    
+
     local current=0
     local success=0
     local failed=0
-    
-    log_info "Starting batch processing of $total_lines files (threads: $threads, max_reads: ${MAX_ALIG_READS}M)"
-    
-    while IFS= read -r input_file || [[ -n "$input_file" ]]; do
+
+    log_info "Starting batch processing of $total_lines samples (threads: $threads, max_pairs: ${MAX_ALIG_READS}M)"
+
+    while IFS=$'\t' read -r r1_file r2_file || [[ -n "$r1_file" ]]; do
         # Skip empty lines
-        if [[ -z "$input_file" ]]; then
+        if [[ -z "$r1_file" ]]; then
             continue
         fi
         # Skip comments
-        if [[ "$input_file" =~ ^# ]]; then
+        if [[ "$r1_file" =~ ^# ]]; then
             continue
         fi
 
-        
         ((current++)) || true
-        log_info "Processing file $current/$total_lines"
-        
-        # Generate output filename
-        local basename=$(basename "$input_file")
-        
-        process_single_file "$input_file" "$output_file" "$threads" "$max_alig_reads"
+        log_info "Processing sample $current/$total_lines"
+
+        process_single_sample "$r1_file" "$r2_file" "$output_file" "$threads" "$max_alig_reads"
         local result=$?
-        
+
         if [[ $result -eq 0 ]]; then
             ((success++)) || true
         else
             ((failed++)) || true
-            log_error "Failed to process: $input_file"
+            log_error "Failed to process: $r1_file"
         fi
-                
-        #echo "----------------------------------------"
+
     done < "$metadata"
-    
+
     log_info "Batch processing completed!"
     log_info "Total: $total_lines | Success: $success | Failed: $failed"
 }
+
 #===============================================================================
 # Main
 #===============================================================================
 
 # Parse command line arguments
-while getopts "s:b:c:p:u:r:h" opt; do
+while getopts "1:2:b:c:p:u:r:h" opt; do
     case $opt in
-        s)
+        1)
             MODE="single"
-            INPUT_FILE="$OPTARG"
+            R1_FILE="$OPTARG"
+            ;;
+        2)
+            R2_FILE="$OPTARG"
             ;;
         b)
             MODE="batch"
@@ -236,7 +218,6 @@ while getopts "s:b:c:p:u:r:h" opt; do
             ;;
         p)
             THREADS="$OPTARG"
-            # Validate thread number
             if ! [[ "$THREADS" =~ ^[0-9]+$ ]] || [[ "$THREADS" -lt 1 ]]; then
                 log_error "Invalid thread number: $THREADS (must be a positive integer)"
                 exit 1
@@ -244,7 +225,6 @@ while getopts "s:b:c:p:u:r:h" opt; do
             ;;
         u)
             MAX_ALIG_READS="$OPTARG"
-            # Validate max_alig_reads number
             if ! [[ "$MAX_ALIG_READS" =~ ^[0-9]+$ ]] || [[ "$MAX_ALIG_READS" -lt 1 ]]; then
                 log_error "Invalid -u value: $MAX_ALIG_READS (must be a positive integer, unit: millions)"
                 exit 1
@@ -253,7 +233,7 @@ while getopts "s:b:c:p:u:r:h" opt; do
             ;;
         r)
             REFERENCE_DB="$OPTARG"
-            REFERENCE_DB_IS_DEFAULT=false  # Mark as user-provided
+            REFERENCE_DB_IS_DEFAULT=false
             ;;
         h)
             print_usage
@@ -269,16 +249,12 @@ done
 
 # Normalize REFERENCE_DB to absolute path
 if [[ "$REFERENCE_DB" != /* ]]; then
-    # Relative path - convert to absolute path
     if [[ "$REFERENCE_DB_IS_DEFAULT" == true ]]; then
-        # Default value is relative to script directory
         REFERENCE_DB="${SCRIPT_DIR}/${REFERENCE_DB}"
     else
-        # User input is relative to current working directory
         if [[ -d "$(dirname "$REFERENCE_DB")" ]]; then
             REFERENCE_DB="$(cd "$(dirname "$REFERENCE_DB")" && pwd)/$(basename "$REFERENCE_DB")"
         else
-            # Directory doesn't exist yet, construct absolute path manually
             REFERENCE_DB="$(pwd)/$REFERENCE_DB"
         fi
     fi
@@ -286,7 +262,7 @@ fi
 
 # Check if mode is specified
 if [[ -z "$MODE" ]]; then
-    log_error "Please specify either -s (single) or -b (batch) mode"
+    log_error "Please specify either -1/-2 (single sample) or -b (batch) mode"
     print_usage
     exit 1
 fi
@@ -297,11 +273,11 @@ check_dependencies
 # Execute based on mode
 case $MODE in
     single)
-        if [[ -z "$INPUT_FILE" ]]; then
-            log_error "Input file not specified for single mode"
+        if [[ -z "$R1_FILE" ]] || [[ -z "$R2_FILE" ]]; then
+            log_error "Both -1 (R1) and -2 (R2) files must be specified for single sample mode"
             exit 1
         fi
-        process_single_file "$INPUT_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
+        process_single_sample "$R1_FILE" "$R2_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
         ;;
     batch)
         if [[ -z "$METADATA_FILE" ]]; then
@@ -313,7 +289,8 @@ case $MODE in
 esac
 
 
-python3 ${SCRIPT_DIR}/check_strand.py $OUTPUT_FILE
+python3 ${SCRIPT_DIR}/fast_check_strand.py $OUTPUT_FILE
+
 # Clean up
 if [[ -f resolveS.sam ]]; then
     rm resolveS.sam
@@ -324,8 +301,7 @@ if [[ -f $OUTPUT_FILE ]]; then
     rm $OUTPUT_FILE
     log_info "Cleaned up temporary file: $OUTPUT_FILE"
 fi
- 
+
 log_info "All done!"
 
 exit 0
-
