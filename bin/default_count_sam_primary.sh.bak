@@ -30,13 +30,10 @@ fi
 # --- Awk Command Execution ---
 # For paired-end data, we only count R1 reads to represent fragments
 # Filters:
-#   - Must be paired: FLAG & 0x1 (1)
 #   - Must be R1 (first in pair): FLAG & 0x40 (64)
 #   - Must be proper pair: FLAG & 0x2 (2)
 #   - Must be mapped: NOT (FLAG & 0x4)
-#   - Mate must be mapped: NOT (FLAG & 0x8)
 #   - Must be primary: NOT (FLAG & 0x100) AND NOT (FLAG & 0x800)
-#   - MAPQ >= 4
 # Strand is determined by R1's alignment direction (FLAG & 0x10)
 awk '
 BEGIN {
@@ -50,12 +47,6 @@ BEGIN {
 }
 !/^@/ {
     flag = $2
-    mapq = $5
-
-    # Must be paired (bit 0x1)
-    if (int(flag / 1) % 2 != 1) {
-        next
-    }
 
     # Only process R1 (first in pair, bit 0x40)
     if (int(flag / 64) % 2 != 1) {
@@ -68,18 +59,6 @@ BEGIN {
     # Check if unmapped (bit 0x4)
     if (int(flag / 4) % 2 == 1) {
         unmapped++
-        next
-    }
-
-    # Check if mate unmapped (bit 0x8)
-    if (int(flag / 8) % 2 == 1) {
-        unmapped++
-        next
-    }
-
-    # Check MAPQ >= 4
-    if (mapq < 4) {
-        not_proper++
         next
     }
 
