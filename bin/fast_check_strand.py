@@ -115,7 +115,7 @@ def determine_strandedness(total: int, relative_diff: float) -> str:
     Returns:
         Strandedness type: 'fr-firststrand', 'fr-secondstrand', 'fr-unstranded', or 'insufficient-data'
     """
-    if total <= 500:
+    if total <= 40:
         return 'insufficient-data'
     
     if abs(relative_diff) <= 0.6:
@@ -143,11 +143,11 @@ def determine_need_precise(total: int, relative_diff: float) -> str:
     Returns:
         'T' if need precise analysis, 'F' otherwise
     """
-    if total <= 3000:
+    if total <= 80:
         return 'T'
     
     abs_diff = abs(relative_diff)
-    if 0.07156908 < abs_diff < 2/3:
+    if 0.2 < abs_diff < 0.8:
         return 'T'
     
     return 'F'
