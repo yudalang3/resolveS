@@ -115,10 +115,10 @@ def determine_strandedness(total: int, relative_diff: float) -> str:
     Returns:
         Strandedness type: 'fr-firststrand', 'fr-secondstrand', 'fr-unstranded', or 'insufficient-data'
     """
-    if total <= 3000:
+    if total <= 500:
         return 'insufficient-data'
     
-    if abs(relative_diff) <= 0.07156908:
+    if abs(relative_diff) <= 0.6:
         return 'fr-unstranded'
     
     if relative_diff > 0:

@@ -143,8 +143,8 @@ process_single_sample() {
     local fullpath=$(realpath "$r1")
 
     # Step2: Count SAM file
-    "${SCRIPT_DIR}/default_count_sam_primary.sh" resolveS.sam "$output" "$fullpath"
-
+    #"${SCRIPT_DIR}/default_count_sam_primary.sh" resolveS.sam "$output" "$fullpath"
+    "${SCRIPT_DIR}/count_sam_per_chrom_major.pl" resolveS.sam "$output" "$fullpath"
     return 0
 }
 
