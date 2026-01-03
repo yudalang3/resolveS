@@ -335,6 +335,13 @@ debug_print "[ADAPTIVE] Final result: $result->{final_type} ($result->{detection
 # --- Output ---
 # Format: index_str strand_type MAPQ_filter detection_level fwd rev fwd_Ratio rev_Ratio Rel_Diff
 my $mapq_filter = "MAPQ-$final_mapq";
-open my $out, '>>', $output_file or die "Cannot open $output_file: $!\n";
-print $out "$index_str\t$result->{final_type}\t$mapq_filter\t$result->{detection_level}\t$result->{fwd}\t$result->{rev}\t$result->{fwd_Ratio}\t$result->{rev_Ratio}\t$result->{Rel_Diff}\n";
-close $out;
+my $output_line = "$index_str\t$result->{final_type}\t$mapq_filter\t$result->{detection_level}\t$result->{fwd}\t$result->{rev}\t$result->{fwd_Ratio}\t$result->{rev_Ratio}\t$result->{Rel_Diff}\n";
+
+if ($output_file eq "-") {
+    # Output to stdout
+    print $output_line;
+} else {
+    open my $out, '>>', $output_file or die "Cannot open $output_file: $!\n";
+    print $out $output_line;
+    close $out;
+}
