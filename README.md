@@ -4,10 +4,11 @@
 
 The goal of this tool is "Rapid RNA-Seq Strand Specificity Detection".
 
-
 Accurate determination of strand specificity (stranded vs. non-stranded) is a critical prerequisite for transcriptomic analysis. It is a necessary parameter for configuring essential bioinformatics tools like featureCounts and Trinity. However, this information is often missing or incorrectly annotated in public datasets, which can lead to reproducibility issues and misinterpretation of results.
 
 resolveS is a high-performance tool designed to solve this problem instantly. It is **super-fast, memory-efficient**, and user-friendly, making it the perfect addition to any RNA-Seq Quality Control (QC) pipeline. Whether you are exploring public data or validating your own libraries, resolveS provides the necessary metadata to ensure your downstream analysis is accurate and reproducible.
+
+In addition to being faster and more memory-efficient, resolveS introduces a new feature: it can infer strandedness for species without a reference genome and report a confidence level.
 
 ## What's New (v0.1.x)
 
@@ -40,7 +41,6 @@ singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.
 # Single-end (fast)
 singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS_fast -s sample_R1.fq.gz
 ```
-
 
 ## 2. Portable Program Version
 
@@ -98,10 +98,10 @@ The `-b` parameter allows batch processing (FASTQ list for `resolveS_fast`, FAST
 
 resolveS provides multiple script variants for different use cases:
 
-| Script | Description | Input Mode | Default `-u` | Core Scripts |
-|--------|-------------|------------|------------|------------------|
-| `resolveS` | Default (paired-end FASTQ or pre-aligned SAM) | `-1/-2` or `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
-| `resolveS_fast` | Fast (single-end FASTQ) | `-s` | 1M reads | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl` |
+| Script          | Description                                 | Input Mode        | Default `-u` | Core Scripts                                                                          |
+| --------------- | ------------------------------------------- | ----------------- | ------------ | ------------------------------------------------------------------------------------- |
+| `resolveS`      | Default (paired-end FASTQ or pre-aligned SAM) | `-1/-2` or `-a`   | 5M pairs     | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl`                       |
+| `resolveS_fast` | Fast (single-end FASTQ)                     | `-s`              | 1M reads     | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl`     |
 
 ## 3. If you already have **Bowtie 2** and **Perl** installed
 
@@ -174,6 +174,7 @@ Output formats differ between the two scripts:
 - `resolveS_fast` outputs: `File`, `Strandedness`, `NeedPrecise`, `Fwd`, `Rev`, `Rel_Diff`, `Chi2`, `P_value`, ...
 
 Notes for `resolveS` output columns:
+
 - `index_str`: input identifier (absolute path of R1 or SAM)
 - `MAPQ_filter`: final MAPQ cutoff used (`MAPQ-20/10/3/0`)
 - `detection_level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
@@ -195,6 +196,7 @@ flowchart TD
 ```
 
 Key points:
+
 - Uses **paired-end** alignment (`-1 R1.fq -2 R2.fq`) by default, or accepts a SAM file (`-a aligned.sam`)
 - Progressive detection based on top chromosomes (3/3 → 4/5 → 6/7 → 7/8), with fallback when needed
 - Adaptive MAPQ thresholds: 20 → 10 → 3 → 0 (only when necessary)

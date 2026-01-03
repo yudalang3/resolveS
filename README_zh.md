@@ -4,10 +4,11 @@
 
 本工具的目标是"快速检测 RNA-Seq 链特异性"。
 
-
 准确判定链特异性（有链特异性 vs. 无链特异性）是转录组分析的关键前提。它是配置 featureCounts 和 Trinity 等重要生物信息学工具的必要参数。然而，这一信息在公共数据集中往往缺失或标注错误，可能导致结果重现性问题和错误解读。
 
 resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快速、低内存占用**且用户友好，是任何 RNA-Seq 质量控制（QC）流程的完美补充。无论您是探索公共数据还是验证自己的文库，resolveS 都能提供必要的元数据，确保下游分析的准确性和可重复性。
+
+本软件除了运行更快、更省内存之外，实现了新功能：可以对没有参考基因组的物种进也进行链特异性方式的判定并且给出置信程度。
 
 ## 更新摘要（v0.1.x）
 
@@ -40,7 +41,6 @@ singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.
 # 单端（快速）
 singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS_fast -s sample_R1.fq.gz
 ```
-
 
 ## 2. 绿色免安装版本 portable_program
 
@@ -82,7 +82,6 @@ resolveS
 
 将结果保存到文本文件中：
 
-
 ```bash
 # 双端：使用 -o 直接写入
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz -o results.tsv
@@ -99,10 +98,10 @@ resolveS
 
 resolveS 提供多个脚本变体以适应不同的使用场景：
 
-| 脚本 | 描述 | 输入模式 | 默认 `-u` | 关键脚本 |
-|--------|------|----------|---------|----------|
-| `resolveS` | 默认版本（双端 FASTQ 或已比对 SAM） | `-1/-2` 或 `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
-| `resolveS_fast` | 快速版本（单端 FASTQ） | `-s` | 1M reads | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl` |
+| 脚本              | 描述                                | 输入模式            | 默认 `-u` | 关键脚本                                                                                |
+| ----------------- | ----------------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `resolveS`      | 默认版本（双端 FASTQ 或已比对 SAM） | `-1/-2` 或 `-a` | 5M pairs    | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl`                     |
+| `resolveS_fast` | 快速版本（单端 FASTQ）              | `-s`              | 1M reads    | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl` |
 
 ## 3. 如果您已安装 **Bowtie 2** 和 **Perl**
 
@@ -139,7 +138,6 @@ resolveS/
 
 > 您还需要下载 bowtie2 索引文件
 
-
 然后是一般的步骤：
 
 **方法 1：创建并激活环境（推荐）**
@@ -159,8 +157,6 @@ mamba install bioconda::bowtie2 perl
 
 激活环境后，按照上述部分（"如果您已安装 Bowtie 2 和 Perl"）中描述的安装步骤进行操作.
 
-
-
 # 使用方法和输出演示
 
 对于最终用户来说，最方便的用法是：
@@ -174,6 +170,7 @@ mamba install bioconda::bowtie2 perl
 - `resolveS_fast` 输出：`File`、`Strandedness`、`NeedPrecise`、`Rel_Diff`、`Chi2`、`P_value` 等
 
 `resolveS` 输出列说明：
+
 - `index_str`：输入标识（R1 或 SAM 的绝对路径）
 - `MAPQ_filter`：最终采用的 MAPQ 阈值（`MAPQ-20/10/3/0`）
 - `detection_level`：渐进式检测阶段（如 `3of3`、`4of5`、`6of7`、`7of8`）或 `*-fallback`
@@ -195,6 +192,7 @@ flowchart TD
 ```
 
 要点：
+
 - 使用**双端**比对（`-1 R1.fq -2 R2.fq`）
 - 也支持直接输入 SAM（`-a aligned.sam`）
 - 按 top 染色体渐进式检测（3/3 → 4/5 → 6/7 → 7/8），必要时走 fallback
@@ -217,6 +215,7 @@ flowchart TD
 ```
 
 要点：
+
 - 使用**单端**比对（`-s R1.fq`）
 - 统计所有 primary 比对（简单、快速）
 - 默认：1M reads（`-u 1`）
@@ -250,6 +249,7 @@ flowchart TD
 ### resolveS（双端 FASTQ 或已比对 SAM）
 
 **单样本模式：**
+
 - `-1 <file>`：R1（第一读段）fastq 文件。
 - `-2 <file>`：R2（第二读段）fastq 文件。
 - `-a <file>`：输入已比对的 SAM：跳过比对步骤，直接分析 SAM。
@@ -261,6 +261,7 @@ flowchart TD
 - `-h`：显示帮助信息并退出。
 
 **批量模式：**
+
 - `-b <meta_data_file>`：元数据文件（自动识别）：
   - FASTQ 批量：2 列（tab 分隔 `R1_path<TAB>R2_path`）
   - SAM 批量：1 列（每行一个 `SAM_path`）
@@ -268,6 +269,7 @@ flowchart TD
 ### resolveS_fast（单端模式）
 
 **单文件模式：**
+
 - `-s <file>`：输入 fastq 文件（仅 R1）。
 - `-p <int>`：线程数（默认：6）。
 - `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1）。
@@ -277,10 +279,12 @@ flowchart TD
 - `-h`：显示帮助信息并退出。
 
 **批量模式：**
+
 - `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
 
 ### 中间文件
 
 使用 `-d`（调试模式）时，以下中间文件会被保留：
+
 - `resolveS.sam`：bowtie2 的比对输出。
 - `log.raw.SAM.counts.txt`（或通过 `-c` 自定义，仅 `resolveS_fast`）：链分析前的计数结果。
