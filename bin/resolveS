@@ -102,13 +102,8 @@ check_dependencies() {
         missing=1
     fi
 
-    if [[ ! -f "${SCRIPT_DIR}/default_count_sam_primary.sh" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/default_count_sam_primary.sh"
-        missing=1
-    fi
-
-    if [[ ! -f "${SCRIPT_DIR}/fast_check_strand.py" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/fast_check_strand.py"
+    if [[ ! -f "${SCRIPT_DIR}/default_counting_withChrom.pl" ]]; then
+        log_error "Required script not found: ${SCRIPT_DIR}/default_counting_withChrom.pl"
         missing=1
     fi
 
@@ -142,9 +137,14 @@ process_single_sample() {
     # Get basename for logging (use R1 as identifier)
     local fullpath=$(realpath "$r1")
 
-    # Step2: Count SAM file
-    #"${SCRIPT_DIR}/default_count_sam_primary.sh" resolveS.sam "$output" "$fullpath"
-    "${SCRIPT_DIR}/count_sam_per_chrom_major.pl" resolveS.sam "$output" "$fullpath"
+    # Step 2: Count and analyze strand with default_counting_withChrom.pl
+    # Parameters: <input_sam_file> [output_file] [index_str] [debug=0]
+    local debug_flag=0
+    if [[ "$DEBUG" == true ]]; then
+        debug_flag=1
+    fi
+
+    perl "${SCRIPT_DIR}/default_counting_withChrom.pl" resolveS.sam "$output" "$fullpath" "$debug_flag"
     return 0
 }
 
@@ -293,8 +293,6 @@ case $MODE in
         ;;
 esac
 
-
-python3 ${SCRIPT_DIR}/fast_check_strand.py $OUTPUT_FILE
 
 # Clean up (skip if debug mode)
 if [[ "$DEBUG" == false ]]; then
