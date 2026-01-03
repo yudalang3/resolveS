@@ -17,9 +17,10 @@ MODE=""
 R1_FILE=""
 R2_FILE=""
 METADATA_FILE=""
-OUTPUT_FILE="log.raw.SAM.counts.txt"
+SAM_FILE=""  # Pre-aligned SAM file (use with -a option)
+OUTPUT_FILE=""  # Empty means output to stdout
 THREADS=6
-MAX_ALIG_READS=1
+MAX_ALIG_READS=5
 MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
 REFERENCE_DB_IS_DEFAULT=true
@@ -39,36 +40,53 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.1.1
+This is resolveS version 0.1.2
 Usage: $0 [OPTIONS]
 
 Options:
     -1 <file>       R1 (first read) file for single sample mode
     -2 <file>       R2 (second read) file for single sample mode
+    -a <file>       Pre-aligned SAM file mode: skip alignment, use existing SAM file
     -b <file>       Batch mode: process multiple files from metadata file
-    -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
+                    - FASTQ batch: 2 columns (R1_path, R2_path)
+                    - SAM batch: 1 column (SAM_path)
+    -o <file>       Output the inference results to the file (default: stdout)
     -p <number>     Number of threads to use (default: 6)
-    -u <number>     Maximum number of read pairs to align, in millions (default: 1, i.e. 1M pairs)
+    -u <number>     Maximum number of read pairs to align, in millions (default: 5, i.e. 5M pairs)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
-    -d              Debug mode: keep intermediate files (resolveS.sam, counts.txt)
+    -d              Debug mode: keep intermediate files (resolveS.sam)
     -h              Show this help message
 
 Examples:
     # Single sample mode (paired-end)
     $0 -1 sample_R1.fastq -2 sample_R2.fastq
 
-    # Batch mode with multiple threads
-    $0 -b metadata.txt -p 8
+    # Output to file
+    $0 -1 sample_R1.fastq -2 sample_R2.fastq -o results.txt
+
+    # Use pre-aligned SAM file (skip alignment step)
+    $0 -a aligned.sam
+
+    # Batch mode with FASTQ files
+    $0 -b metadata_fastq.txt -p 8
+
+    # Batch mode with SAM files
+    $0 -b metadata_sam.txt
 
     # Limit alignment to 2 million read pairs
     $0 -1 sample_R1.fastq -2 sample_R2.fastq -u 2
 
 IMPORTANT: This version uses paired-end alignment.
            For single-end data, use resolveS_fast instead.
+           Use -a option if you already have a SAM file from alignment.
 
-Metadata file format (tab-separated: R1_path R2_path):
+Metadata file format for FASTQ batch (tab-separated: R1_path R2_path):
     /path/to/sample1_R1.fastq    /path/to/sample1_R2.fastq
     /path/to/sample2_R1.fq.gz    /path/to/sample2_R2.fq.gz
+
+Metadata file format for SAM batch (one path per line):
+    /path/to/sample1.sam
+    /path/to/sample2.sam
 
 EOF
 }
@@ -91,15 +109,18 @@ log_error() {
 check_dependencies() {
     local missing=0
 
-    if [[ ! -f "${REFERENCE_DB}.1.bt2" ]]; then
-        log_error "Can not found the bowtie2 genome index file: ${REFERENCE_DB}.1.bt2"
-        log_error "Please check your -r parameter or download the default index from https://github.com/yudalang3/resolveS"
-        missing=1
-    fi
+    # Skip alignment dependencies check if using pre-aligned SAM file
+    if [[ -z "$SAM_FILE" ]]; then
+        if [[ ! -f "${REFERENCE_DB}.1.bt2" ]]; then
+            log_error "Can not found the bowtie2 genome index file: ${REFERENCE_DB}.1.bt2"
+            log_error "Please check your -r parameter or download the default index from https://github.com/yudalang3/resolveS"
+            missing=1
+        fi
 
-    if [[ ! -f "${SCRIPT_DIR}/default_align_by_bowtie2.sh" ]]; then
-        log_error "Required script not found: ${SCRIPT_DIR}/default_align_by_bowtie2.sh"
-        missing=1
+        if [[ ! -f "${SCRIPT_DIR}/default_align_by_bowtie2.sh" ]]; then
+            log_error "Required script not found: ${SCRIPT_DIR}/default_align_by_bowtie2.sh"
+            missing=1
+        fi
     fi
 
     if [[ ! -f "${SCRIPT_DIR}/default_counting_withChrom.pl" ]]; then
@@ -144,7 +165,41 @@ process_single_sample() {
         debug_flag=1
     fi
 
-    perl "${SCRIPT_DIR}/default_counting_withChrom.pl" resolveS.sam "$output" "$fullpath" "$debug_flag"
+    # If output is empty, use /dev/stdout
+    local output_target="${output:-/dev/stdout}"
+
+    perl "${SCRIPT_DIR}/default_counting_withChrom.pl" resolveS.sam "$output_target" "$fullpath" "$debug_flag"
+    return 0
+}
+
+process_prealigned_sam() {
+    local sam_file="$1"
+    local output="$2"
+
+    if [[ ! -f "$sam_file" ]]; then
+        log_error "SAM file not found: $sam_file"
+        return 1
+    fi
+
+    log_info "Processing pre-aligned SAM file: $sam_file"
+
+    # Copy SAM file to expected location
+    cp "$sam_file" resolveS.sam
+
+    # Get basename for logging
+    local fullpath=$(realpath "$sam_file")
+
+    # Count and analyze strand with default_counting_withChrom.pl
+    # Parameters: <input_sam_file> [output_file] [index_str] [debug=0]
+    local debug_flag=0
+    if [[ "$DEBUG" == true ]]; then
+        debug_flag=1
+    fi
+
+    # If output is empty, use /dev/stdout
+    local output_target="${output:-/dev/stdout}"
+
+    perl "${SCRIPT_DIR}/default_counting_withChrom.pl" resolveS.sam "$output_target" "$fullpath" "$debug_flag"
     return 0
 }
 
@@ -167,6 +222,15 @@ process_batch() {
     local failed=0
 
     log_info "Starting batch processing of $total_lines samples (threads: $threads, max_pairs: ${MAX_ALIG_READS}M)"
+
+    # Output header before processing
+    if [[ -z "$output_file" ]]; then
+        # stdout mode - always output header
+        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+    elif [[ ! -s "$output_file" ]]; then
+        # file mode - output header if file doesn't exist or is empty
+        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$output_file"
+    fi
 
     while IFS=$'\t' read -r r1_file r2_file || [[ -n "$r1_file" ]]; do
         # Skip empty lines
@@ -197,12 +261,68 @@ process_batch() {
     log_info "Total: $total_lines | Success: $success | Failed: $failed"
 }
 
+process_batch_sam() {
+    local metadata="$1"
+    local output_file="$2"
+
+    if [[ ! -f "$metadata" ]]; then
+        log_error "Metadata file not found: $metadata"
+        exit 1
+    fi
+
+    # Count non-empty, non-comment lines
+    local total_lines=$(grep -v '^[[:space:]]*#' "$metadata" | grep -v '^[[:space:]]*$' | wc -l)
+
+    local current=0
+    local success=0
+    local failed=0
+
+    log_info "Starting batch SAM processing of $total_lines samples"
+
+    # Output header before processing
+    if [[ -z "$output_file" ]]; then
+        # stdout mode - always output header
+        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+    elif [[ ! -s "$output_file" ]]; then
+        # file mode - output header if file doesn't exist or is empty
+        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$output_file"
+    fi
+
+    while IFS= read -r sam_file || [[ -n "$sam_file" ]]; do
+        # Skip empty lines
+        if [[ -z "$sam_file" ]]; then
+            continue
+        fi
+        # Skip comments
+        if [[ "$sam_file" =~ ^# ]]; then
+            continue
+        fi
+
+        ((current++)) || true
+        log_info "Processing SAM file $current/$total_lines"
+
+        process_prealigned_sam "$sam_file" "$output_file"
+        local result=$?
+
+        if [[ $result -eq 0 ]]; then
+            ((success++)) || true
+        else
+            ((failed++)) || true
+            log_error "Failed to process: $sam_file"
+        fi
+
+    done < "$metadata"
+
+    log_info "Batch SAM processing completed!"
+    log_info "Total: $total_lines | Success: $success | Failed: $failed"
+}
+
 #===============================================================================
 # Main
 #===============================================================================
 
 # Parse command line arguments
-while getopts "1:2:b:c:p:u:r:dh" opt; do
+while getopts "1:2:a:b:o:p:u:r:dh" opt; do
     case $opt in
         1)
             MODE="single"
@@ -211,11 +331,15 @@ while getopts "1:2:b:c:p:u:r:dh" opt; do
         2)
             R2_FILE="$OPTARG"
             ;;
+        a)
+            MODE="sam"
+            SAM_FILE="$OPTARG"
+            ;;
         b)
             MODE="batch"
             METADATA_FILE="$OPTARG"
             ;;
-        c)
+        o)
             OUTPUT_FILE="$OPTARG"
             ;;
         p)
@@ -267,7 +391,7 @@ fi
 
 # Check if mode is specified
 if [[ -z "$MODE" ]]; then
-    log_error "Please specify either -1/-2 (single sample) or -b (batch) mode"
+    log_error "Please specify either -1/-2 (single sample), -a (pre-aligned SAM), or -b (batch) mode"
     print_usage
     exit 1
 fi
@@ -282,14 +406,56 @@ case $MODE in
             log_error "Both -1 (R1) and -2 (R2) files must be specified for single sample mode"
             exit 1
         fi
+
+        # Output header before processing
+        if [[ -z "$OUTPUT_FILE" ]]; then
+            # stdout mode - always output header
+            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+        elif [[ ! -s "$OUTPUT_FILE" ]]; then
+            # file mode - output header if file doesn't exist or is empty
+            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$OUTPUT_FILE"
+        fi
+
         process_single_sample "$R1_FILE" "$R2_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
+        ;;
+    sam)
+        if [[ -z "$SAM_FILE" ]]; then
+            log_error "SAM file not specified for -a mode"
+            exit 1
+        fi
+
+        # Output header before processing
+        if [[ -z "$OUTPUT_FILE" ]]; then
+            # stdout mode - always output header
+            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+        elif [[ ! -s "$OUTPUT_FILE" ]]; then
+            # file mode - output header if file doesn't exist or is empty
+            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$OUTPUT_FILE"
+        fi
+
+        process_prealigned_sam "$SAM_FILE" "$OUTPUT_FILE"
         ;;
     batch)
         if [[ -z "$METADATA_FILE" ]]; then
             log_error "Metadata file not specified for batch mode"
             exit 1
         fi
-        process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
+
+        # Auto-detect metadata format: 2 columns = FASTQ, 1 column = SAM
+        # Read first non-empty, non-comment line to detect format
+        FIRST_LINE=$(grep -v '^[[:space:]]*#' "$METADATA_FILE" | grep -v '^[[:space:]]*$' | head -1)
+        COLUMN_COUNT=$(echo "$FIRST_LINE" | awk -F'\t' '{print NF}')
+
+        if [[ $COLUMN_COUNT -eq 2 ]]; then
+            log_info "Detected FASTQ batch mode (2 columns in metadata)"
+            process_batch "$METADATA_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
+        elif [[ $COLUMN_COUNT -eq 1 ]]; then
+            log_info "Detected SAM batch mode (1 column in metadata)"
+            process_batch_sam "$METADATA_FILE" "$OUTPUT_FILE"
+        else
+            log_error "Invalid metadata format. Expected 2 columns (R1, R2) for FASTQ or 1 column for SAM files"
+            exit 1
+        fi
         ;;
 esac
 
@@ -300,13 +466,8 @@ if [[ "$DEBUG" == false ]]; then
         rm resolveS.sam
         log_info "Cleaned up temporary file: resolveS.sam"
     fi
-
-    if [[ -f $OUTPUT_FILE ]]; then
-        rm $OUTPUT_FILE
-        log_info "Cleaned up temporary file: $OUTPUT_FILE"
-    fi
 else
-    log_info "Debug mode: keeping intermediate files (resolveS.sam, $OUTPUT_FILE)"
+    log_info "Debug mode: keeping intermediate file (resolveS.sam)"
 fi
 
 log_info "All done!"

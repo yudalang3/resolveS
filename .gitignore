@@ -3,6 +3,7 @@ ref_default/
 ref_sensitive/
 bowtie2/
 ref_bowtie2/
+examples/data/
 
 bin/__pycache__/
 
