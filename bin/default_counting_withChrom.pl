@@ -160,7 +160,7 @@ sub run_detection {
     my $get_strand_type = sub {
         my ($f, $r) = @_;
         my $total = $f + $r;
-        return 'insufficient-data' if $total <= 40;
+        return 'insufficient-data' if $total < 18;
         my $mean = $total / 2.0;
         my $relative_diff = $mean > 0 ? ($f - $r) / $mean : 0;
         return 'fr-unstranded' if abs($relative_diff) <= 0.6;
