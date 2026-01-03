@@ -273,15 +273,37 @@ sub run_detection {
     my $rev = 0;
     my $tie = 0;
 
+    # --- Debug: Per-chromosome distribution ---
+    debug_print "\n--- Per-chromosome distribution (MAPQ >= $mapq_threshold) ---\n";
+    debug_print "Total chromosomes with valid alignments: $total_chroms\n";
+    debug_print "chrom\tfwd\trev\ttotal\tmajor\tstrand_type\n";
+
     for my $chrom (@sorted_chroms) {
         my $f = $chrom_fwd{$chrom} // 0;
         my $r = $chrom_rev{$chrom} // 0;
-        if ($f > $r) { $fwd++; }
-        elsif ($r > $f) { $rev++; }
-        else { $tie++; }
+        my $t = $f + $r;
+        my $major;
+        my $strand_type = $get_strand_type->($f, $r);
+
+        if ($f > $r) {
+            $fwd++;
+            $major = "fwd";
+        } elsif ($r > $f) {
+            $rev++;
+            $major = "rev";
+        } else {
+            $tie++;
+            $major = "tie";
+        }
+
+        debug_print "$chrom\t$f\t$r\t$t\t$major\t$strand_type\n";
     }
 
     my $total = $fwd + $rev;
+    debug_print "\n--- Summary ---\n";
+    debug_print "Total chromosomes (excluding tie): $total\n";
+    debug_print "fwd: $fwd | rev: $rev | tie: $tie (filtered)\n";
+    debug_print "=" x 60 . "\n";
     my $fwd_Ratio = $total > 0 ? $fwd / $total : 0;
     my $rev_Ratio = $total > 0 ? $rev / $total : 0;
     my $mean = $total / 2.0;
