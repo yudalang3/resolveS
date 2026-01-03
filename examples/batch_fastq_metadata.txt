@@ -1,0 +1,3 @@
+# Batch FASTQ metadata file
+# Format: R1_path	R2_path
+/mnt/c/Users/yudal/Documents/GitHub/resolveS/examples/data/0h_1A_1.fq.gz	/mnt/c/Users/yudal/Documents/GitHub/resolveS/examples/data/0h_1A_2.fq.gz

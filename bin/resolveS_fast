@@ -318,7 +318,7 @@ case $MODE in
 esac
 
 
-python3 ${SCRIPT_DIR}/fast_check_strand.py $OUTPUT_FILE
+perl ${SCRIPT_DIR}/fast_check_strand.pl $OUTPUT_FILE
 # Clean up (skip if debug mode)
 if [[ "$DEBUG" == false ]]; then
     if [[ -f resolveS.sam ]]; then

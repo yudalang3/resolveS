@@ -1,0 +1,4 @@
+# Batch metadata for resolveS_fast
+# Format: one R1 file path per line (do NOT include R2)
+data/0h_1A_1.fq.gz
+data/0h_2A_1.fq.gz
