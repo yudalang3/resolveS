@@ -38,7 +38,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS_fast version 0.1.3
+This is resolveS_fast version 0.1.4
 Usage: $0 [OPTIONS]
 
 Options:
