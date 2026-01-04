@@ -10,14 +10,6 @@ resolveS is a high-performance tool designed to solve this problem instantly. It
 
 In addition to being faster and more memory-efficient, resolveS introduces a new feature: it can infer strandedness for species without a reference genome and report a confidence level.
 
-## What's New (v0.1.x)
-
-- `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
-- Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-chromosome voting + adaptive MAPQ).
-- `resolveS_fast` uses a Perl strand bias analyzer (`bin/fast_check_strand.pl`); Python dependency is removed.
-- Output defaults to stdout; use `resolveS -o` to write results to a file.
-- Cutoffs updated: `abs(Rel_Diff) <= 0.6` ⇒ `fr-unstranded`; low-coverage ⇒ `insufficient-data`.
-
 # Installation & Usage Guide
 
 First, please download the archive file from the **releases** section. Follow the instructions below based on your existing environment to proceed with the software installation.
@@ -90,7 +82,7 @@ Save the results to a text file:
 ./resolveS/bin/resolveS_fast -s sample_R1.fq.gz > results.tsv
 ```
 
-Finally, the `strand_type` (paired-end) / `Strandedness` (fast) column is the inferred result.
+Finally, the `Strand_Type` (paired-end) / `Strandedness` (fast) column is the inferred result.
 
 The `-b` parameter allows batch processing (FASTQ list for `resolveS_fast`, FASTQ/SAM list for `resolveS`).
 
@@ -135,7 +127,7 @@ resolveS/
 
 ## 4. If you prefer using **Conda** / **Mamba**
 
-You are already an advanced user. You can check the `bin` directory yourself and modify `align_by_bowtie2.sh` to configure `bowtie2`.
+You are already an advanced user. You can check the `bin` directory yourself and modify `BOWTIE2_BIN` variable in `default_align_by_bowtie2.sh` or `fast_align_by_bowtie2.sh` to configure `bowtie2`.
 
 > You also need to download the bowtie2 index files
 
@@ -168,17 +160,45 @@ For the end-user, the most convenient usage is:
 - Paired-end (recommended): `resolveS -1 R1.fq.gz -2 R2.fq.gz`
 - Single-end (fast): `resolveS_fast -s R1.fq.gz`
 
+Note: `resolveS_fast` takes **one** FASTQ file (R1 only). `resolveS` expects **two** files (R1 + R2) unless you use `-a` to supply a pre-aligned SAM.
+
 Output formats differ between the two scripts:
 
-- `resolveS` outputs: `index_str`, `strand_type`, `MAPQ_filter`, `detection_level`, `fwd`, `rev`, `Rel_Diff`, ...
-- `resolveS_fast` outputs: `File`, `Strandedness`, `NeedPrecise`, `Fwd`, `Rev`, `Rel_Diff`, `Chi2`, `P_value`, ...
+- `resolveS` outputs: `File`, `Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
+- `resolveS_fast` outputs: `File`, `Strandedness`, `NeedPrecise`, `Fwd`, `Rev`, `Fwd_Ratio`, `Rev_Ratio`, `Rel_Diff`, `Chi2`, `P_value`
 
 Notes for `resolveS` output columns:
 
-- `index_str`: input identifier (absolute path of R1 or SAM)
-- `MAPQ_filter`: final MAPQ cutoff used (`MAPQ-20/10/3/0`)
-- `detection_level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
-- `fwd`/`rev`: number of chromosomes where forward/reverse read counts dominate (ties excluded)
+- `File`: input identifier (absolute path of R1 or SAM)
+- `MAPQ_Filter`: final MAPQ cutoff used (`MAPQ-20/10/3/0`)
+- `Detection_Level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
+- `Overall_fallback_Fwd`/`Overall_fallback_Rev`: number of chromosomes where forward/reverse read counts dominate (ties excluded)
+- `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`: proportion of fwd/rev chromosomes (e.g. 0.538 means 53.8%)
+- `Overall_fallback_Rel_Diff`: relative difference = (Fwd - Rev) / mean(Fwd, Rev); positive = forward-biased
+
+## Interpreting Results
+
+The `Detection_Level` column in `resolveS` output indicates the confidence of strand detection. Higher levels mean more agreement among top chromosomes.
+
+### Confidence Level Table (from highest to lowest)
+
+| MAPQ_Filter | Detection_Level | Confidence | Description |
+|-------------|-----------------|------------|-------------|
+| MAPQ-20 | 3of3 | Highest | Top 3 chromosomes all agree |
+| MAPQ-20 | 4of5 | High | 4 of top 5 chromosomes agree |
+| MAPQ-20 | 6of7 | High | 6 of top 7 chromosomes agree |
+| MAPQ-20 | 7of8 | Moderate | 7 of top 8 chromosomes agree |
+| MAPQ-10 | 3of3 ~ 7of8 | Moderate | Same as above but required lower MAPQ threshold |
+| MAPQ-3 | 3of3 ~ 7of8 | Low | Required very low MAPQ threshold |
+| MAPQ-0 | 3of3 ~ 7of8 | Low | No MAPQ filtering applied |
+| Any | *-fallback | Lowest | Progressive detection failed; used global Rel_Diff as fallback |
+
+**Key points:**
+
+- `MAPQ-20` results are most reliable (high-quality alignments only)
+- Lower MAPQ thresholds (10/3/0) are tried progressively only when higher thresholds yield `all-insufficient-fallback`
+- `*-fallback` suffix indicates the progressive per-chromosome detection failed and the final result is based on global statistics
+- Common fallback types: `only-N-chroms-fallback`, `4of8-split-fallback`, `multi-of8-fallback`, `all-insufficient-fallback`
 
 ## Technical Details
 
@@ -192,7 +212,7 @@ flowchart TD
     B --> C["bowtie2 → resolveS.sam"]
     C --> D["default_counting_withChrom.pl"]
     D --> E["Progressive chrom voting + adaptive MAPQ"]
-    E --> F["strand_type + detection_level"]
+    E --> F["Strand_Type + Detection_Level"]
 ```
 
 Key points:
@@ -224,6 +244,25 @@ Key points:
 - Faster but may be less accurate than paired-end mode
 
 ### Decision logic (current implementation)
+
+#### MAPQ Progressive Strategy (resolveS only)
+
+The `resolveS` script uses an adaptive MAPQ strategy to maximize detection success:
+
+```mermaid
+flowchart TD
+    A["Start with MAPQ >= 20"] --> B["Run per-chromosome detection"]
+    B --> C{"Result = all-insufficient-fallback?"}
+    C -->|No| D["Return result"]
+    C -->|Yes| E{"More MAPQ levels?"}
+    E -->|Yes| F["Try lower MAPQ: 10 → 3 → 0"]
+    F --> B
+    E -->|No| G["Return best available result"]
+```
+
+This ensures high-quality results when possible, but falls back to lower MAPQ thresholds when necessary.
+
+#### Strand Type Determination
 
 ```mermaid
 flowchart TD
@@ -285,3 +324,14 @@ Core formulas in `bin/fast_check_strand.pl`:
 When using `-d` (debug mode), the following intermediate files are preserved:
 - `resolveS.sam`: The alignment output from bowtie2.
 - `log.raw.SAM.counts.txt` (or custom via `-c`, for `resolveS_fast`): The counting results before strand analysis.
+- **stderr output**: When `-d` is enabled, `default_counting_withChrom.pl` prints per-chromosome distribution tables to stderr, including chromosome name, forward/reverse counts, total, major strand direction, and strand type for each chromosome.
+
+---
+
+## What's New (v0.1.x)
+
+- `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
+- Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-chromosome voting + adaptive MAPQ).
+- `resolveS_fast` uses a Perl strand bias analyzer (`bin/fast_check_strand.pl`); Python dependency is removed.
+- Output defaults to stdout; use `resolveS -o` to write results to a file.
+- Cutoffs updated: `abs(Rel_Diff) <= 0.6` ⇒ `fr-unstranded`; low-coverage ⇒ `insufficient-data`.

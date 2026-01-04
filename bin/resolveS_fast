@@ -17,7 +17,7 @@ MODE=""
 INPUT_FILE=""
 METADATA_FILE=""
 OUTPUT_FILE="log.raw.SAM.counts.txt"
-THREADS=6
+THREADS=8
 MAX_ALIG_READS=1
 MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
 REFERENCE_DB="../ref_default/default"
@@ -38,14 +38,14 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS_fast version 0.1.5
+This is resolveS_fast version 0.1.6
 Usage: $0 [OPTIONS]
 
 Options:
     -s <file>       Single file mode: process one input file
     -b <file>       Batch mode: process multiple files from metadata file
     -c <file>       Output the count matrix from the SAM file (default: log.raw.SAM.counts.txt) debug option
-    -p <number>     Number of threads to use (default: 6)
+    -p <number>     Number of threads to use (default: 8)
     -u <number>     Maximum number of reads to align, in millions (default: 1, i.e. 1M reads)
     -r <path>       The reference genome db, can be any bowtie2 index (default: ../ref_default/default)
     -d              Debug mode: keep intermediate files (resolveS.sam, counts.txt)
@@ -56,7 +56,7 @@ Examples:
     $0 -s sample_1.fastq
     
     # Batch mode with multiple threads
-    $0 -b metadata.txt -p 8
+    $0 -b metadata.txt -p 10
     
     # Limit alignment to 2 million reads
     $0 -s sample_1.fastq -u 2
