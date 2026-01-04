@@ -7,7 +7,7 @@
 # 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 0
 # 当遇到 all-insufficient-fallback 时，降低 MAPQ 重试
 #
-# Output format: index_str strand_type MAPQ_filter detection_level fwd rev fwd_Ratio rev_Ratio Rel_Diff
+# Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
 #
 # =============================================================================
 # DETECTION_LEVEL - All Possible Values:
@@ -355,7 +355,7 @@ debug_print "\n[ADAPTIVE] Final MAPQ used: $final_mapq\n";
 debug_print "[ADAPTIVE] Final result: $result->{final_type} ($result->{detection_level})\n";
 
 # --- Output ---
-# Format: index_str strand_type MAPQ_filter detection_level fwd rev fwd_Ratio rev_Ratio Rel_Diff
+# Format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
 my $mapq_filter = "MAPQ-$final_mapq";
 my $output_line = "$index_str\t$result->{final_type}\t$mapq_filter\t$result->{detection_level}\t$result->{fwd}\t$result->{rev}\t$result->{fwd_Ratio}\t$result->{rev_Ratio}\t$result->{Rel_Diff}\n";
 

@@ -223,10 +223,10 @@ process_batch() {
     # Output header before processing
     if [[ -z "$output_file" ]]; then
         # stdout mode - always output header
-        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+        echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
     elif [[ ! -s "$output_file" ]]; then
         # file mode - output header if file doesn't exist or is empty
-        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$output_file"
+        echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff" > "$output_file"
     fi
 
     while IFS=$'\t' read -r r1_file r2_file || [[ -n "$r1_file" ]]; do
@@ -279,10 +279,10 @@ process_batch_sam() {
     # Output header before processing
     if [[ -z "$output_file" ]]; then
         # stdout mode - always output header
-        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+        echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
     elif [[ ! -s "$output_file" ]]; then
         # file mode - output header if file doesn't exist or is empty
-        echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$output_file"
+        echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff" > "$output_file"
     fi
 
     while IFS= read -r sam_file || [[ -n "$sam_file" ]]; do
@@ -407,10 +407,10 @@ case $MODE in
         # Output header before processing
         if [[ -z "$OUTPUT_FILE" ]]; then
             # stdout mode - always output header
-            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+            echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
         elif [[ ! -s "$OUTPUT_FILE" ]]; then
             # file mode - output header if file doesn't exist or is empty
-            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$OUTPUT_FILE"
+            echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff" > "$OUTPUT_FILE"
         fi
 
         process_single_sample "$R1_FILE" "$R2_FILE" "$OUTPUT_FILE" "$THREADS" "$MAX_ALIG_READS_ACTUAL"
@@ -424,10 +424,10 @@ case $MODE in
         # Output header before processing
         if [[ -z "$OUTPUT_FILE" ]]; then
             # stdout mode - always output header
-            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff"
+            echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
         elif [[ ! -s "$OUTPUT_FILE" ]]; then
             # file mode - output header if file doesn't exist or is empty
-            echo -e "index_str\tstrand_type\tMAPQ_filter\tdetection_level\tfwd\trev\tfwd_Ratio\trev_Ratio\tRel_Diff" > "$OUTPUT_FILE"
+            echo -e "File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff" > "$OUTPUT_FILE"
         fi
 
         process_prealigned_sam "$SAM_FILE" "$OUTPUT_FILE"
