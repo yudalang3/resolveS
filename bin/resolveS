@@ -40,7 +40,7 @@ NC='\033[0m' # No Color
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.1.5
+This is resolveS version 0.1.7
 Usage: $0 [OPTIONS]
 
 Options:
@@ -350,6 +350,10 @@ while getopts "1:2:a:b:o:p:u:r:dh" opt; do
             MAX_ALIG_READS="$OPTARG"
             if ! [[ "$MAX_ALIG_READS" =~ ^[0-9]+$ ]] || [[ "$MAX_ALIG_READS" -lt 1 ]]; then
                 log_error "Invalid -u value: $MAX_ALIG_READS (must be a positive integer, unit: millions)"
+                exit 1
+            fi
+            if [[ "$MAX_ALIG_READS" -gt 100 ]]; then
+                log_error "Invalid -u value: $MAX_ALIG_READS is too large. The unit is MILLIONS, so -u 5 means 5 million reads. Typical values: 1-10."
                 exit 1
             fi
             MAX_ALIG_READS_ACTUAL=$((MAX_ALIG_READS * 1000000))
