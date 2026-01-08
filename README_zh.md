@@ -292,7 +292,7 @@ flowchart TD
 - `-1 <file>`：R1（第一读段）fastq 文件。
 - `-2 <file>`：R2（第二读段）fastq 文件。
 - `-a <file>`：输入已比对的 SAM：跳过比对步骤，直接分析 SAM。
-- `-p <int>`：线程数（默认：6）。
+- `-p <int>`：线程数（默认：8）。
 - `-u <number>`：比对的最大 read pairs 数量，单位为百万（默认：5）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-o <file>`：将推断结果写入文件（默认：stdout）。
@@ -310,7 +310,7 @@ flowchart TD
 **单文件模式：**
 
 - `-s <file>`：输入 fastq 文件（仅 R1）。
-- `-p <int>`：线程数（默认：6）。
+- `-p <int>`：线程数（默认：8）。
 - `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1）。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-c <file>`：指定中间计数矩阵文件名（默认：log.raw.SAM.counts.txt）。

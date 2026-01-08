@@ -2,12 +2,13 @@
 
 ## 版本管理
 
-当版本变更时，**三个主程序都必须同步更新版本号**：
+当版本变更时，**两个主程序都必须同步更新版本号**：
 - `bin/resolveS`
 - `bin/resolveS_fast`
-- `bin/resolveS_singlePrecise`
 
 版本号位置：各脚本的 `print_usage()` 函数中的 `This is resolveS* version x.x.x`
+
+**重要**：每次 commit 时都要检查是否需要更新版本号。
 
 ## 文档更新
 
@@ -21,12 +22,10 @@ README 更新时，**中英文都要同步更新**：
 |------|------|
 | `default_` | 默认版本（双端比对）使用的脚本 |
 | `fast_` | 快速版本（单端比对）使用的脚本 |
-| `precise_` | 精确版本（1M递增分析）使用的脚本 |
 
 ## 共用组件
 
-- `default_align_by_bowtie2.sh` - resolveS 和 resolveS_singlePrecise 共用
-- `fast_check_strand.py` - 所有版本共用的链分析模块
+- `fast_check_strand.pl` - Perl 版链分析模块
 
 ## 中间文件
 

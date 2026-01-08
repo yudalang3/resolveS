@@ -293,7 +293,7 @@ Core formulas in `bin/fast_check_strand.pl`:
 - `-1 <file>`: R1 (first read) fastq file.
 - `-2 <file>`: R2 (second read) fastq file.
 - `-a <file>`: Pre-aligned SAM file mode: skip alignment and use an existing SAM file.
-- `-p <int>`: Number of threads (default: 6).
+- `-p <int>`: Number of threads (default: 8).
 - `-u <number>`: Maximum number of read pairs to align, in millions (default: 5).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-o <file>`: Output the inference results to the file (default: stdout).
@@ -309,7 +309,7 @@ Core formulas in `bin/fast_check_strand.pl`:
 
 **Single file mode:**
 - `-s <file>`: Input fastq file (R1 only).
-- `-p <int>`: Number of threads (default: 6).
+- `-p <int>`: Number of threads (default: 8).
 - `-u <number>`: Maximum number of reads to align, in millions (default: 1).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-c <file>`: Set the intermediate count-matrix file name (default: log.raw.SAM.counts.txt).
