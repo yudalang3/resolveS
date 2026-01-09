@@ -1,4 +1,4 @@
-# resolveS: Rapid RNA-Seq Strand Specificity Detection
+# resolveS: An ultra-fast, memory-efficient and reference-free tool for RNA-seq Strandedness Detection
 
 [English](README.md) | [中文](README_zh.md)
 
