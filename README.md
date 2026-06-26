@@ -54,7 +54,7 @@ resolveS
 │   ├── fast_align_by_bowtie2.sh
 │   ├── fast_count_sam_primary.sh
 │   ├── fast_check_strand.pl           # Strand bias analysis (Perl)
-│   └── default_counting_withChrom.pl  # Progressive per-chrom detection (Perl)
+│   └── default_counting_withChrom.pl  # Progressive per-rRNA-sequence detection (Perl)
 ├── bowtie2
 ├── examples
 ├── ref_default
@@ -172,54 +172,54 @@ Notes for `resolveS` output columns:
 - `File`: input identifier (absolute path of R1 or SAM)
 - `MAPQ_Filter`: final MAPQ cutoff used (`MAPQ-20/10/3/0`)
 - `Detection_Level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
-- `Overall_fallback_Fwd`/`Overall_fallback_Rev`: number of chromosomes where forward/reverse read counts dominate (ties excluded)
-- `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`: proportion of fwd/rev chromosomes (e.g. 0.538 means 53.8%)
+- `Overall_fallback_Fwd`/`Overall_fallback_Rev`: number of rRNA sequences where forward/reverse read counts dominate (ties excluded)
+- `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`: proportion of fwd/rev rRNA sequences (e.g. 0.538 means 53.8%)
 - `Overall_fallback_Rel_Diff`: relative difference = (Fwd - Rev) / mean(Fwd, Rev); positive = forward-biased
 
 ## Interpreting Results
 
-The `Detection_Level` column in `resolveS` output indicates the confidence of strand detection. Higher levels mean more agreement among top chromosomes.
+The `Detection_Level` column in `resolveS` output indicates the confidence of strand detection. Higher levels mean more agreement among top rRNA sequences.
 
 ### Confidence Level Table (from highest to lowest)
 
 | MAPQ_Filter | Detection_Level | Confidence | Description |
 |-------------|-----------------|------------|-------------|
-| MAPQ-20 | 3of3 | Highest | Top 3 chromosomes all agree |
-| MAPQ-20 | 4of5 | High | 4 of top 5 chromosomes agree |
-| MAPQ-20 | 6of7 | High | 6 of top 7 chromosomes agree |
-| MAPQ-20 | 7of8 | Moderate | 7 of top 8 chromosomes agree |
+| MAPQ-20 | 3of3 | Highest | Top 3 rRNA sequences all agree |
+| MAPQ-20 | 4of5 | High | 4 of top 5 rRNA sequences agree |
+| MAPQ-20 | 6of7 | High | 6 of top 7 rRNA sequences agree |
+| MAPQ-20 | 7of8 | Moderate | 7 of top 8 rRNA sequences agree |
 | MAPQ-10 | 3of3 ~ 7of8 | Moderate | Same as above but required lower MAPQ threshold |
 | MAPQ-3 | 3of3 ~ 7of8 | Low | Required very low MAPQ threshold |
-| MAPQ-0 | 3of3 ~ 7of8 | Low | No MAPQ filtering applied |
+| MAPQ-1 | 3of3 ~ 7of8 | Low | Most permissive threshold (still excludes MAPQ=0 multi-mappers) |
 | Any | *-fallback | Lowest | Progressive detection failed; used global Rel_Diff as fallback |
 
 **Key points:**
 
 - `MAPQ-20` results are most reliable (high-quality alignments only)
-- Lower MAPQ thresholds (10/3/0) are tried progressively only when higher thresholds yield `all-insufficient-fallback`
-- `*-fallback` suffix indicates the progressive per-chromosome detection failed and the final result is based on global statistics
-- Common fallback types: `only-N-chroms-fallback`, `4of8-split-fallback`, `multi-of8-fallback`, `all-insufficient-fallback`
+- Lower MAPQ thresholds (10/3/1) are tried progressively only when higher thresholds yield `all-insufficient-fallback`
+- `*-fallback` suffix indicates the progressive per-rRNA-sequence detection failed and the final result is based on global statistics
+- Common fallback types: `only-N-rRNAs-fallback`, `4of8-split-fallback`, `multi-of8-fallback`, `all-insufficient-fallback`
 
 ## Technical Details
 
 ### Pipeline overview (Default: resolveS)
 
-The default `resolveS` uses **paired-end alignment** (or a pre-aligned SAM) and performs **progressive per-chromosome detection**:
+The default `resolveS` uses **paired-end alignment** (or a pre-aligned SAM) and performs **progressive per-rRNA-sequence detection**:
 
 ```mermaid
 flowchart TD
     A["Input: R1+R2 FASTQ (or SAM via -a)"] --> B["(optional) default_align_by_bowtie2.sh"]
     B --> C["bowtie2 → resolveS.sam"]
     C --> D["default_counting_withChrom.pl"]
-    D --> E["Progressive chrom voting + adaptive MAPQ"]
+    D --> E["Progressive rRNA sequence voting + adaptive MAPQ"]
     E --> F["Strand_Type + Detection_Level"]
 ```
 
 Key points:
 
 - Uses **paired-end** alignment (`-1 R1.fq -2 R2.fq`) by default, or accepts a SAM file (`-a aligned.sam`)
-- Progressive detection based on top chromosomes (3/3 → 4/5 → 6/7 → 7/8), with fallback when needed
-- Adaptive MAPQ thresholds: 20 → 10 → 3 → 0 (only when necessary)
+- Progressive detection based on top rRNA sequences (3/3 → 4/5 → 6/7 → 7/8), with fallback when needed
+- Adaptive MAPQ thresholds: 20 → 10 → 3 → 1 (only when necessary)
 - Default: 5M read pairs (`-u 5`)
 
 ### Pipeline overview (Fast: resolveS_fast)
@@ -239,7 +239,7 @@ flowchart TD
 
 Key points:
 - Uses **single-end** alignment (`-s R1.fq`)
-- Counts all primary alignments (simple, fast)
+- Counts primary alignments with `MAPQ >= 20` (excludes multi-mappers; simple, fast)
 - Default: 1M reads (`-u 1`)
 - Faster but may be less accurate than paired-end mode
 
@@ -251,16 +251,26 @@ The `resolveS` script uses an adaptive MAPQ strategy to maximize detection succe
 
 ```mermaid
 flowchart TD
-    A["Start with MAPQ >= 20"] --> B["Run per-chromosome detection"]
+    A["Start with MAPQ >= 20"] --> B["Run per-rRNA-sequence detection"]
     B --> C{"Result = all-insufficient-fallback?"}
     C -->|No| D["Return result"]
     C -->|Yes| E{"More MAPQ levels?"}
-    E -->|Yes| F["Try lower MAPQ: 10 → 3 → 0"]
+    E -->|Yes| F["Try lower MAPQ: 10 → 3 → 1"]
     F --> B
     E -->|No| G["Return best available result"]
 ```
 
-This ensures high-quality results when possible, but falls back to lower MAPQ thresholds when necessary.
+This ensures high-quality results when possible, but falls back to lower MAPQ thresholds when necessary. The lowest tier is `MAPQ >= 1` (not 0), so MAPQ=0 pure multi-mappers are excluded even in the most permissive fallback.
+
+#### Multi-mapping reads
+
+rRNA sequences are highly repetitive, so a single read can align equally well to multiple reference copies. resolveS handles such multi-mapping reads as follows:
+
+- **Bowtie2 runs in default mode** (no `-k`/`-a`), so each read produces **exactly one** best alignment — multiple alignments per read are never reported (no secondary `0x100` records).
+- For a multi-mapping read, Bowtie2 places it pseudo-randomly at one location and assigns a **low MAPQ (0/1)**.
+- Counting therefore **filters by MAPQ** (`>= 20` by default; see ladder above). This removes the pseudo-randomly placed multi-mappers, so the strand-bias signal is contributed only by uniquely mapped reads.
+- In the default (paired-end) pipeline, only **R1** is counted and a **proper pair** (`0x2`) is required; filtering R1 by MAPQ effectively discards the whole multi-mapping pair.
+- The fast (single-end) pipeline applies the same `MAPQ >= 20` filter (reported in the `low_mapq` column).
 
 #### Strand Type Determination
 
@@ -297,7 +307,7 @@ Core formulas in `bin/fast_check_strand.pl`:
 - `-u <number>`: Maximum number of read pairs to align, in millions (default: 5).
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-o <file>`: Output the inference results to the file (default: stdout).
-- `-d`: Debug mode - keep intermediate files and print per-chromosome summary to stderr.
+- `-d`: Debug mode - keep intermediate files and print per-rRNA-sequence summary to stderr.
 - `-h`: Show help message and exit.
 
 **Batch mode:**
@@ -324,14 +334,14 @@ Core formulas in `bin/fast_check_strand.pl`:
 When using `-d` (debug mode), the following intermediate files are preserved:
 - `resolveS.sam`: The alignment output from bowtie2.
 - `log.raw.SAM.counts.txt` (or custom via `-c`, for `resolveS_fast`): The counting results before strand analysis.
-- **stderr output**: When `-d` is enabled, `default_counting_withChrom.pl` prints per-chromosome distribution tables to stderr, including chromosome name, forward/reverse counts, total, major strand direction, and strand type for each chromosome.
+- **stderr output**: When `-d` is enabled, `default_counting_withChrom.pl` prints per-rRNA-sequence distribution tables to stderr, including rRNA sequence name, forward/reverse counts, total, major strand direction, and strand type for each rRNA sequence.
 
 ---
 
 ## What's New (v0.1.x)
 
 - `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
-- Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-chromosome voting + adaptive MAPQ).
+- Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-rRNA-sequence voting + adaptive MAPQ).
 - `resolveS_fast` uses a Perl strand bias analyzer (`bin/fast_check_strand.pl`); Python dependency is removed.
 - Output defaults to stdout; use `resolveS -o` to write results to a file.
 - Cutoffs updated: `abs(Rel_Diff) <= 0.6` ⇒ `fr-unstranded`; low-coverage ⇒ `insufficient-data`.

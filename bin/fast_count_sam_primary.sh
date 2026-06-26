@@ -1,7 +1,8 @@
 #!/bin/bash
 # A script to count reads and classify alignments in a SAM file 
 # based on their FLAG field.
-# This script counts PRIMARY alignments only (excludes secondary/supplementary).
+# This script counts PRIMARY alignments only (excludes secondary/supplementary),
+# and additionally drops low-MAPQ (< 20) alignments to exclude multi-mapping reads.
 
 # --- Input Handling ---
 if [ -z "$1" ]; then
@@ -43,25 +44,34 @@ BEGIN {
     flag = $2
     mapq = $5
     total++
-    
+
     # Check if bit 0x4 (unmapped) is set
     if (int(flag / 4) % 2 == 1) {
         unmapped++
         next
     }
-    
+
     # Check if bit 0x100 (secondary) is set
     if (int(flag / 256) % 2 == 1) {
         sec++
         next
     }
-    
+
     # Check if bit 0x800 (supplementary) is set
     if (int(flag / 2048) % 2 == 1) {
         supp++
         next
     }
-    
+
+    # Drop low-MAPQ alignments (MAPQ < 20).
+    # In Bowtie2 default mode, multi-mapping reads (e.g. repetitive rRNA) are
+    # placed pseudo-randomly and assigned a low MAPQ (0/1); this filter excludes
+    # them so the strand-bias signal comes only from uniquely mapped reads.
+    if (mapq < 20) {
+        low_mapq++
+        next
+    }
+
     # Check if bit 0x10 (reverse strand) is set
     if (int(flag / 16) % 2 == 1)
         rev++

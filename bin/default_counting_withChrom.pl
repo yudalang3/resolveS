@@ -1,11 +1,12 @@
 #!/usr/bin/env perl
-# A script to count chromosomes from paired-end SAM file
-# Progressive strand detection: check top 3, then 5, then 7, then 8 chromosomes
+# A script to count rRNA reference sequences from paired-end SAM file
+# Progressive strand detection: check top 3, then 5, then 7, then 8 rRNA sequences
 # 渐进式判断：前3一致->前5有4个一致->前7有6个一致->前8对半开则fail
 #
 # === ADAPTIVE MAPQ VERSION ===
-# 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 0
+# 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 1
 # 当遇到 all-insufficient-fallback 时，降低 MAPQ 重试
+# 注意：最低一档为 MAPQ >= 1，确保即使在最宽松档位也排除 MAPQ=0 的纯随机多重比对。
 #
 # Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
 #
@@ -14,26 +15,26 @@
 # =============================================================================
 #
 # --- Success (progressive detection passed, NO fallback) ---
-#   3of3   : Level 1 passed - top 3 chroms all agree on same valid type
-#   4of5   : Level 2 passed - 4 of top 5 chroms agree on same valid type
-#   6of7   : Level 3 passed - 6 of top 7 chroms agree on same valid type
-#   7of8   : Level 4 passed - 7 of top 8 chroms agree
+#   3of3   : Level 1 passed - top 3 rRNA sequences all agree on same valid type
+#   4of5   : Level 2 passed - 4 of top 5 rRNA sequences agree on same valid type
+#   6of7   : Level 3 passed - 6 of top 7 rRNA sequences agree on same valid type
+#   7of8   : Level 4 passed - 7 of top 8 rRNA sequences agree
 #   (Note: 8of8 is impossible - would have passed at Level 1 as 3of3)
 #
 # --- Failure (progressive detection failed, Rel_Diff FALLBACK used) ---
 # (These all have '-fallback' suffix appended after fallback processing)
 #
-#   only-0-chroms-fallback : 0 chromosomes available
-#   only-1-chroms-fallback : 1 chromosome available
-#   only-2-chroms-fallback : 2 chromosomes available (need 3 for Level 1)
-#   only-3-chroms-fallback : 3 chroms but Level 1 failed, need 5 for Level 2
-#   only-4-chroms-fallback : 4 chroms but Level 1 failed, need 5 for Level 2
-#   only-5-chroms-fallback : 5 chroms but Level 2 failed, need 7 for Level 3
-#   only-6-chroms-fallback : 6 chroms but Level 2 failed, need 7 for Level 3
-#   only-7-chroms-fallback : 7 chroms but Level 3 failed, need 8 for Level 4
+#   only-0-rRNAs-fallback : 0 rRNA sequences available
+#   only-1-rRNAs-fallback : 1 rRNA sequence available
+#   only-2-rRNAs-fallback : 2 rRNA sequences available (need 3 for Level 1)
+#   only-3-rRNAs-fallback : 3 rRNA seqs but Level 1 failed, need 5 for Level 2
+#   only-4-rRNAs-fallback : 4 rRNA seqs but Level 1 failed, need 5 for Level 2
+#   only-5-rRNAs-fallback : 5 rRNA seqs but Level 2 failed, need 7 for Level 3
+#   only-6-rRNAs-fallback : 6 rRNA seqs but Level 2 failed, need 7 for Level 3
+#   only-7-rRNAs-fallback : 7 rRNA seqs but Level 3 failed, need 8 for Level 4
 #   4of8-split-fallback    : Level 4 reached, 4:4 split between two types
 #   multi-of8-fallback     : Level 4 reached, 3-way+ split, no majority
-#   all-insufficient-fallback : All top 8 chroms have insufficient reads
+#   all-insufficient-fallback : All top 8 rRNA seqs have insufficient reads
 #
 # --- Fallback Logic ---
 # When final_type is 'fail-detect', use global Rel_Diff to determine strand:
@@ -42,7 +43,7 @@
 #   - Rel_Diff > 0      -> 'fr-secondstrand'
 #   - Rel_Diff < 0      -> 'fr-firststrand'
 #
-# Note: 'insufficient-data' chroms (reads <= 40) are EXCLUDED from voting.
+# Note: 'insufficient-data' rRNA sequences (reads <= 40) are EXCLUDED from voting.
 #       Only valid types (fr-firststrand, fr-secondstrand, fr-unstranded) count.
 #
 # =============================================================================
@@ -51,14 +52,14 @@
 #   fr-firststrand   : Reverse reads dominate (rel_diff < -0.6), e.g. dUTP
 #   fr-secondstrand  : Forward reads dominate (rel_diff > 0.6), e.g. ligation
 #   fr-unstranded    : Balanced reads (|rel_diff| <= 0.6), non-stranded
-#   insufficient-data: No valid chromosomes (total = 0)
+#   insufficient-data: No valid rRNA sequences (total = 0)
 #
 # =============================================================================
 # ADAPTIVE MAPQ LOGIC:
 # =============================================================================
 # When detection_level is 'all-insufficient-fallback', try lower MAPQ:
-#   MAPQ-20 -> MAPQ-10 -> MAPQ-3 -> MAPQ-0
-# MAPQ_filter column shows the final MAPQ threshold used (e.g., MAPQ-20, MAPQ-10, MAPQ-3, MAPQ-0)
+#   MAPQ-20 -> MAPQ-10 -> MAPQ-3 -> MAPQ-1
+# MAPQ_filter column shows the final MAPQ threshold used (e.g., MAPQ-20, MAPQ-10, MAPQ-3, MAPQ-1)
 #
 # =============================================================================
 
@@ -66,7 +67,9 @@ use strict;
 use warnings;
 
 # --- MAPQ thresholds to try in order ---
-my @MAPQ_LEVELS = (20, 10, 3, 0);
+# Lowest tier is 1 (not 0) so that MAPQ=0 pure multi-mappers are always excluded,
+# even in the most permissive fallback used for sparse data.
+my @MAPQ_LEVELS = (20, 10, 3, 1);
 
 # --- Global Configuration ---
 our $DEBUG = 0;
@@ -143,7 +146,7 @@ sub run_detection {
     }
     close $fh;
 
-    # --- Get valid chromosomes ---
+    # --- Get valid rRNA sequences ---
     my %valid_chroms;
     $valid_chroms{$_} = 1 for keys %chrom_fwd;
     $valid_chroms{$_} = 1 for keys %chrom_rev;
@@ -156,7 +159,7 @@ sub run_detection {
 
     my $total_chroms = scalar(@sorted_chroms);
 
-    # --- Helper: get strand type for a chromosome ---
+    # --- Helper: get strand type for an rRNA sequence ---
     my $get_strand_type = sub {
         my ($f, $r) = @_;
         my $total = $f + $r;
@@ -203,7 +206,7 @@ sub run_detection {
 
     if ($total_chroms < 3) {
         $final_type = 'fail-detect';
-        $detection_level = 'only-' . $total_chroms . '-chroms';
+        $detection_level = 'only-' . $total_chroms . '-rRNAs';
     } else {
         # Level 1: 3/3
         my ($counts, $insuff) = $count_strand_types->(3);
@@ -214,7 +217,7 @@ sub run_detection {
             $detection_level = '3of3';
         } elsif ($total_chroms < 5) {
             $final_type = 'fail-detect';
-            $detection_level = 'only-' . $total_chroms . '-chroms';
+            $detection_level = 'only-' . $total_chroms . '-rRNAs';
         } else {
             # Level 2: 4/5
             ($counts, $insuff) = $count_strand_types->(5);
@@ -225,7 +228,7 @@ sub run_detection {
                 $detection_level = '4of5';
             } elsif ($total_chroms < 7) {
                 $final_type = 'fail-detect';
-                $detection_level = 'only-' . $total_chroms . '-chroms';
+                $detection_level = 'only-' . $total_chroms . '-rRNAs';
             } else {
                 # Level 3: 6/7
                 ($counts, $insuff) = $count_strand_types->(7);
@@ -236,7 +239,7 @@ sub run_detection {
                     $detection_level = '6of7';
                 } elsif ($total_chroms < 8) {
                     $final_type = 'fail-detect';
-                    $detection_level = 'only-' . $total_chroms . '-chroms';
+                    $detection_level = 'only-' . $total_chroms . '-rRNAs';
                 } else {
                     # Level 4: 7/8
                     ($counts, $insuff) = $count_strand_types->(8);
@@ -273,10 +276,10 @@ sub run_detection {
     my $rev = 0;
     my $tie = 0;
 
-    # --- Debug: Per-chromosome distribution ---
-    debug_print "\n--- Per-chromosome distribution (MAPQ >= $mapq_threshold) ---\n";
-    debug_print "Total chromosomes with valid alignments: $total_chroms\n";
-    debug_print "chrom\tfwd\trev\ttotal\tmajor\tstrand_type\n";
+    # --- Debug: Per-rRNA-sequence distribution ---
+    debug_print "\n--- Per-rRNA-sequence distribution (MAPQ >= $mapq_threshold) ---\n";
+    debug_print "Total rRNA sequences with valid alignments: $total_chroms\n";
+    debug_print "rRNA_seq\tfwd\trev\ttotal\tmajor\tstrand_type\n";
 
     for my $chrom (@sorted_chroms) {
         my $f = $chrom_fwd{$chrom} // 0;
@@ -301,7 +304,7 @@ sub run_detection {
 
     my $total = $fwd + $rev;
     debug_print "\n--- Summary ---\n";
-    debug_print "Total chromosomes (excluding tie): $total\n";
+    debug_print "Total rRNA sequences (excluding tie): $total\n";
     debug_print "fwd: $fwd | rev: $rev | tie: $tie (filtered)\n";
     debug_print "=" x 60 . "\n";
     my $fwd_Ratio = $total > 0 ? $fwd / $total : 0;

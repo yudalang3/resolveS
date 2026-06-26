@@ -54,7 +54,7 @@ resolveS
 │   ├── fast_align_by_bowtie2.sh
 │   ├── fast_count_sam_primary.sh
 │   ├── fast_check_strand.pl           # 链偏好分析（Perl）
-│   └── default_counting_withChrom.pl  # 染色体渐进式检测（Perl）
+│   └── default_counting_withChrom.pl  # rRNA 序列渐进式检测（Perl）
 ├── bowtie2
 ├── examples
 ├── ref_default
@@ -168,46 +168,46 @@ mamba install bioconda::bowtie2 perl
 - `File`：输入标识（R1 或 SAM 的绝对路径）
 - `MAPQ_Filter`：最终采用的 MAPQ 阈值（`MAPQ-20/10/3/0`）
 - `Detection_Level`：渐进式检测阶段（如 `3of3`、`4of5`、`6of7`、`7of8`）或 `*-fallback`
-- `Overall_fallback_Fwd`/`Overall_fallback_Rev`：按染色体统计的"正向占优/反向占优"的染色体数量（剔除 tie）
-- `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`：正向/反向染色体的比例（如 0.538 表示 53.8%）
+- `Overall_fallback_Fwd`/`Overall_fallback_Rev`：按 rRNA 序列统计的"正向占优/反向占优"的 rRNA 序列数量（剔除 tie）
+- `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`：正向/反向 rRNA 序列的比例（如 0.538 表示 53.8%）
 - `Overall_fallback_Rel_Diff`：相对差异 = (Fwd - Rev) / mean(Fwd, Rev)；正值表示正链占优
 
 ## 结果解读
 
-`resolveS` 输出中的 `Detection_Level` 列表示链检测的置信度。级别越高，表示 top 染色体之间的一致性越好。
+`resolveS` 输出中的 `Detection_Level` 列表示链检测的置信度。级别越高，表示 top rRNA 序列之间的一致性越好。
 
 ### 置信度等级表（从高到低）
 
 | MAPQ_Filter | Detection_Level | 置信度 | 说明 |
 |-------------|-----------------|--------|------|
-| MAPQ-20 | 3of3 | 最高 | Top 3 染色体全部一致 |
-| MAPQ-20 | 4of5 | 高 | Top 5 染色体中 4 个一致 |
-| MAPQ-20 | 6of7 | 高 | Top 7 染色体中 6 个一致 |
-| MAPQ-20 | 7of8 | 中等 | Top 8 染色体中 7 个一致 |
+| MAPQ-20 | 3of3 | 最高 | Top 3 rRNA 序列全部一致 |
+| MAPQ-20 | 4of5 | 高 | Top 5 rRNA 序列中 4 个一致 |
+| MAPQ-20 | 6of7 | 高 | Top 7 rRNA 序列中 6 个一致 |
+| MAPQ-20 | 7of8 | 中等 | Top 8 rRNA 序列中 7 个一致 |
 | MAPQ-10 | 3of3 ~ 7of8 | 中等 | 同上，但需要降低 MAPQ 阈值 |
 | MAPQ-3 | 3of3 ~ 7of8 | 低 | 需要非常低的 MAPQ 阈值 |
-| MAPQ-0 | 3of3 ~ 7of8 | 低 | 不进行 MAPQ 过滤 |
+| MAPQ-1 | 3of3 ~ 7of8 | 低 | 最宽松的阈值（仍排除 MAPQ=0 的多重比对） |
 | 任意 | *-fallback | 最低 | 渐进式检测失败；使用全局 Rel_Diff 作为后备 |
 
 **要点：**
 
 - `MAPQ-20` 的结果最可靠（仅使用高质量比对）
-- 只有当较高阈值产生 `all-insufficient-fallback` 时，才会逐步尝试较低的 MAPQ 阈值（10/3/0）
-- `*-fallback` 后缀表示按染色体的渐进式检测失败，最终结果基于全局统计
-- 常见的 fallback 类型：`only-N-chroms-fallback`、`4of8-split-fallback`、`multi-of8-fallback`、`all-insufficient-fallback`
+- 只有当较高阈值产生 `all-insufficient-fallback` 时，才会逐步尝试较低的 MAPQ 阈值（10/3/1）
+- `*-fallback` 后缀表示按 rRNA 序列的渐进式检测失败，最终结果基于全局统计
+- 常见的 fallback 类型：`only-N-rRNAs-fallback`、`4of8-split-fallback`、`multi-of8-fallback`、`all-insufficient-fallback`
 
 ## 技术细节
 
 ### 流程概览（默认版本：resolveS）
 
-默认的 `resolveS` 使用**双端比对**（或输入已比对 SAM），并进行**按染色体渐进式检测**：
+默认的 `resolveS` 使用**双端比对**（或输入已比对 SAM），并进行**按 rRNA 序列渐进式检测**：
 
 ```mermaid
 flowchart TD
     A["输入: R1+R2 FASTQ（或 -a SAM）"] --> B["(可选) default_align_by_bowtie2.sh"]
     B --> C["bowtie2 → resolveS.sam"]
     C --> D["default_counting_withChrom.pl"]
-    D --> E["染色体渐进式投票 + 自适应 MAPQ"]
+    D --> E["rRNA 序列渐进式投票 + 自适应 MAPQ"]
     E --> F["Strand_Type + Detection_Level"]
 ```
 
@@ -215,8 +215,8 @@ flowchart TD
 
 - 使用**双端**比对（`-1 R1.fq -2 R2.fq`）
 - 也支持直接输入 SAM（`-a aligned.sam`）
-- 按 top 染色体渐进式检测（3/3 → 4/5 → 6/7 → 7/8），必要时走 fallback
-- 自适应 MAPQ 阈值：20 → 10 → 3 → 0（仅在需要时降低）
+- 按 top rRNA 序列渐进式检测（3/3 → 4/5 → 6/7 → 7/8），必要时走 fallback
+- 自适应 MAPQ 阈值：20 → 10 → 3 → 1（仅在需要时降低）
 - 默认：5M read pairs（`-u 5`）
 
 ### 流程概览（快速版本：resolveS_fast）
@@ -237,7 +237,7 @@ flowchart TD
 要点：
 
 - 使用**单端**比对（`-s R1.fq`）
-- 统计所有 primary 比对（简单、快速）
+- 统计 `MAPQ >= 20` 的 primary 比对（排除多重比对；简单、快速）
 - 默认：1M reads（`-u 1`）
 - 速度更快，但可能不如双端模式准确
 
@@ -249,16 +249,26 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["从 MAPQ >= 20 开始"] --> B["运行按染色体检测"]
+    A["从 MAPQ >= 20 开始"] --> B["运行按 rRNA 序列检测"]
     B --> C{"结果 = all-insufficient-fallback?"}
     C -->|否| D["返回结果"]
     C -->|是| E{"还有更低的 MAPQ 级别?"}
-    E -->|是| F["尝试更低 MAPQ: 10 → 3 → 0"]
+    E -->|是| F["尝试更低 MAPQ: 10 → 3 → 1"]
     F --> B
     E -->|否| G["返回最佳可用结果"]
 ```
 
-这确保了在可能的情况下获得高质量结果，但在必要时会退回到较低的 MAPQ 阈值。
+这确保了在可能的情况下获得高质量结果，但在必要时会退回到较低的 MAPQ 阈值。最低一档为 `MAPQ >= 1`（而非 0），因此即使在最宽松的后备档位，MAPQ=0 的纯多重比对也会被排除。
+
+#### 多重比对（multi-mapping）read 的处理
+
+rRNA 序列高度重复，同一条 read 可能等同地比对到多个参考拷贝。resolveS 的处理方式如下：
+
+- **Bowtie2 以默认模式运行**（不加 `-k`/`-a`），因此每条 read 只产生**一条**最佳比对——绝不会对同一条 read 报告多条比对（不产生 secondary `0x100` 记录）。
+- 对于多重比对的 read，Bowtie2 会把它伪随机地放到某一个位置，并赋予**很低的 MAPQ（0/1）**。
+- 因此计数阶段**按 MAPQ 过滤**（默认 `>= 20`，见上方阶梯）。这会剔除这些被伪随机放置的多重比对 read，使链偏好信号仅由唯一比对（uniquely mapped）的 read 贡献。
+- 在默认（双端）流程中，仅统计 **R1** 且要求 **proper pair**（`0x2`）；对 R1 按 MAPQ 过滤等价于把整个多重比对的 read pair 丢弃。
+- 快速（单端）流程同样应用 `MAPQ >= 20` 过滤（计入 `low_mapq` 列）。
 
 #### 链类型判定
 
@@ -327,14 +337,14 @@ flowchart TD
 
 - `resolveS.sam`：bowtie2 的比对输出。
 - `log.raw.SAM.counts.txt`（或通过 `-c` 自定义，仅 `resolveS_fast`）：链分析前的计数结果。
-- **stderr 输出**：启用 `-d` 时，`default_counting_withChrom.pl` 会在 stderr 打印每条染色体的分布表，包括染色体名称、正向/反向计数、总数、主要链方向和每条染色体的链类型。
+- **stderr 输出**：启用 `-d` 时，`default_counting_withChrom.pl` 会在 stderr 打印每条 rRNA 序列的分布表，包括 rRNA 序列名称、正向/反向计数、总数、主要链方向和每条 rRNA 序列的链类型。
 
 ---
 
 ## 更新摘要（v0.1.x）
 
 - `resolveS` 支持直接输入已比对的 SAM（`-a`），批量模式可自动识别 FASTQ（2 列）或 SAM（1 列）元数据文件。
-- 默认流程简化为 `align → default_counting_withChrom.pl`（按染色体渐进式投票 + 自适应 MAPQ）。
+- 默认流程简化为 `align → default_counting_withChrom.pl`（按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
 - `resolveS_fast` 使用 Perl 版链偏好分析器（`bin/fast_check_strand.pl`），不再依赖 Python。
 - 默认输出到 stdout；使用 `resolveS -o` 可直接写入文件。
 - 阈值更新：`abs(Rel_Diff) <= 0.6` 判定为 `fr-unstranded`；低覆盖判定为 `insufficient-data`。
