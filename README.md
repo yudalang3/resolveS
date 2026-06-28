@@ -170,7 +170,7 @@ Output formats differ between the two scripts:
 Notes for `resolveS` output columns:
 
 - `File`: input identifier (absolute path of R1 or SAM)
-- `MAPQ_Filter`: final MAPQ cutoff used (`MAPQ-20/10/3/0`)
+- `MAPQ_Filter`: final MAPQ cutoff used (`MAPQ-20/10/3/1`)
 - `Detection_Level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
 - `Overall_fallback_Fwd`/`Overall_fallback_Rev`: number of rRNA sequences where forward/reverse read counts dominate (ties excluded)
 - `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`: proportion of fwd/rev rRNA sequences (e.g. 0.538 means 53.8%)

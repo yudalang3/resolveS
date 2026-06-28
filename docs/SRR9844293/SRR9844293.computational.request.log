@@ -1,0 +1,13 @@
+RUN_accession	SRR9844293
+R1	/mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_1.fastq.gz
+R2	/mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_2.fastq.gz
+CPU_cores_requested	20
+started_at	2026-06-26T11:24:44+08:00
+elapsed_wall_clock	0:42.27
+actual_runtime_seconds	42.27
+cpu_percent	1795%
+peak_memory_kb	516448
+exit_status_from_time	0
+exit_status	0
+finished_at	2026-06-26T11:25:26+08:00
+cleanup_resolveS_sam	removed

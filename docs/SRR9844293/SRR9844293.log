@@ -1,0 +1,84 @@
+[2026-06-26 11:24:44] RUN_accession=SRR9844293
+[2026-06-26 11:24:44] R1=/mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_1.fastq.gz
+[2026-06-26 11:24:44] R2=/mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_2.fastq.gz
+[2026-06-26 11:24:44] command=/home/dell/projects/estimate_strand4NGS/formal_program/resolveS/bin/resolveS -p 20 -d -1 /mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_1.fastq.gz -2 /mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_2.fastq.gz -o /home/dell/projects/test_resolveS/benchmark0626/SRR9844293.resolveS.output.tsv
+[0;32m[INFO][0m Processing paired-end: /mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_1.fastq.gz + /mnt/yusim/dalang/projects/resolveS/data/Signal_2022/raw/SRR9844293_2.fastq.gz (threads: 20, max_pairs: 5M, reference: /home/dell/projects/estimate_strand4NGS/formal_program/resolveS/bin/../ref_default/default)
+5000000 reads; of these:
+  5000000 (100.00%) were paired; of these:
+    4987322 (99.75%) aligned concordantly 0 times
+    298 (0.01%) aligned concordantly exactly 1 time
+    12380 (0.25%) aligned concordantly >1 times
+0.25% overall alignment rate
+
+============================================================
+[ADAPTIVE] Trying MAPQ_THRESHOLD = 20
+============================================================
+
+--- Per-chromosome distribution (MAPQ >= 20) ---
+Total chromosomes with valid alignments: 51
+chrom	fwd	rev	total	major	strand_type
+SILVA_132_LSTRef;MAQB02000001.977071.980070	527	530	1057	rev	fr-unstranded
+SILVA_132_LSTRef;APFF01000036.5719.8592	303	297	600	fwd	fr-unstranded
+SILVA_138_SSTRef_NR99;KY783394.1.1483	94	111	205	rev	fr-unstranded
+SILVA_132_LSTRef;CDMF01000001.6342593.6346491	86	74	160	fwd	fr-unstranded
+SILVA_132_LSTRef;CP010892.124177.127090	35	34	69	fwd	fr-unstranded
+SILVA_132_LSTRef;KT865807.1.2898	32	20	52	fwd	fr-unstranded
+SILVA_138_SSTRef_NR99;KY783374.1.1476	17	24	41	rev	fr-unstranded
+SILVA_138_SSTRef_NR99;JX475105.1.1496	17	19	36	rev	fr-unstranded
+SILVA_138_SSTRef_NR99;KY783367.1.1465	9	15	24	rev	fr-unstranded
+SILVA_138_SSTRef_NR99;KX085034.1.1457	6	18	24	rev	fr-firststrand
+SILVA_138_SSTRef_NR99;JFZQ01000047.425805.427198	11	10	21	fwd	fr-unstranded
+SILVA_138_SSTRef_NR99;AB288313.1.1493	6	10	16	rev	insufficient-data
+SILVA_138_SSTRef_NR99;AY693838.1.1477	12	4	16	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;ATTT01007745.25.1926	8	7	15	fwd	insufficient-data
+SILVA_132_LSTRef;LKAP01000055.660.3454	4	8	12	rev	insufficient-data
+SILVA_138_SSTRef_NR99;AB809579.1.1427	2	10	12	rev	insufficient-data
+SILVA_132_LSTRef;GAFB01001311.1.2759	6	5	11	fwd	insufficient-data
+SILVA_132_LSTRef;MKYQ01000736.56826.59564	2	8	10	rev	insufficient-data
+SILVA_132_LSTRef;AMWD01000001.1183807.1186679	3	6	9	rev	insufficient-data
+SILVA_132_LSTRef;GABT01019965.570.3684	3	3	6	tie	insufficient-data
+SILVA_138_SSTRef_NR99;LS992097.389246737.389248023	3	3	6	tie	insufficient-data
+SILVA_138_SSTRef_NR99;LBLM01048031.42916.44209	4	2	6	fwd	insufficient-data
+SILVA_132_LSTRef;MNCJ01003443.475551.478424	5	0	5	fwd	insufficient-data
+SILVA_132_LSTRef;BDFN01000140.295161.298173	2	3	5	rev	insufficient-data
+SILVA_138_SSTRef_NR99;AY662019.1.1468	2	2	4	tie	insufficient-data
+SILVA_132_LSTRef;LMPM01000001.173781.176591	1	3	4	rev	insufficient-data
+SILVA_132_LSTRef;MLAT01000970.905.3659	4	0	4	fwd	insufficient-data
+SILVA_132_LSTRef;LPWI01001094.108674.111757	2	0	2	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;JN580059.1.1528	2	0	2	fwd	insufficient-data
+SILVA_132_LSTRef;LLKS01000042.64631.67569	2	0	2	fwd	insufficient-data
+SILVA_132_LSTRef;GBAD01033120.14.3317	2	0	2	fwd	insufficient-data
+SILVA_132_LSTRef;MTPI01001075.4423.8088	1	1	2	tie	insufficient-data
+SILVA_132_LSTRef;CP000431.1544737.1547873	0	1	1	rev	insufficient-data
+SILVA_138_SSTRef_NR99;KY189326.1.1430	1	0	1	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;KT122318.1.1496	0	1	1	rev	insufficient-data
+SILVA_132_LSTRef;CP006764.2589723.2592818	0	1	1	rev	insufficient-data
+SILVA_132_LSTRef;LKPS01000003.1513.4724	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;HC049454.5040.8406	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;AP014655.3066108.3068361	0	1	1	rev	insufficient-data
+SILVA_138_SSTRef_NR99;JSAD01000377.9145.10623	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;CP009122.161179.163975	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;FNBZ01000018.2448.5264	0	1	1	rev	insufficient-data
+SILVA_132_LSTRef;BDFN01000140.321775.324459	0	1	1	rev	insufficient-data
+SILVA_132_LSTRef;LWHW01000022.251.3405	1	0	1	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;GETY01000836.1.1611	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;JSAD01000032.1833.5293	1	0	1	fwd	insufficient-data
+SILVA_132_LSTRef;JMKK01006398.63234.66190	0	1	1	rev	insufficient-data
+SILVA_138_SSTRef_NR99;KT515205.1.1492	1	0	1	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;LFLV01000644.20833.22626	1	0	1	fwd	insufficient-data
+SILVA_138_SSTRef_NR99;KT978316.1.1404	0	1	1	rev	insufficient-data
+SILVA_132_LSTRef;JTFL01000126.9644.12205	1	0	1	fwd	insufficient-data
+
+--- Summary ---
+Total chromosomes (excluding tie): 47
+fwd: 26 | rev: 21 | tie: 4 (filtered)
+============================================================
+[ADAPTIVE] Result: detection_level='3of3', strand_type='fr-unstranded'
+
+[ADAPTIVE] Success at MAPQ=20
+
+[ADAPTIVE] Final MAPQ used: 20
+[ADAPTIVE] Final result: fr-unstranded (3of3)
+[0;32m[INFO][0m Debug mode: keeping intermediate file (resolveS.sam)
+[0;32m[INFO][0m All done!
+[2026-06-26 11:25:26] Removing generated intermediate file: /home/dell/projects/test_resolveS/benchmark0626/SRR9844293.work/resolveS.sam

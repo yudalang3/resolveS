@@ -166,7 +166,7 @@ mamba install bioconda::bowtie2 perl
 `resolveS` 输出列说明：
 
 - `File`：输入标识（R1 或 SAM 的绝对路径）
-- `MAPQ_Filter`：最终采用的 MAPQ 阈值（`MAPQ-20/10/3/0`）
+- `MAPQ_Filter`：最终采用的 MAPQ 阈值（`MAPQ-20/10/3/1`）
 - `Detection_Level`：渐进式检测阶段（如 `3of3`、`4of5`、`6of7`、`7of8`）或 `*-fallback`
 - `Overall_fallback_Fwd`/`Overall_fallback_Rev`：按 rRNA 序列统计的"正向占优/反向占优"的 rRNA 序列数量（剔除 tie）
 - `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`：正向/反向 rRNA 序列的比例（如 0.538 表示 53.8%）
