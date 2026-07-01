@@ -30,8 +30,6 @@ resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快
 # 双端（推荐）
 singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
-# 单端（快速）
-singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS_fast -s sample_R1.fq.gz
 ```
 
 ## 2. 绿色免安装版本 portable_program
@@ -48,12 +46,8 @@ resolveS
 ├── README.md
 ├── README_zh.md
 ├── bin
-│   ├── resolveS                       # 默认版本（双端 FASTQ 或已比对 SAM）
-│   ├── resolveS_fast                  # 快速版本（单端 FASTQ）
+│   ├── resolveS                       # 双端 FASTQ 或已比对 SAM
 │   ├── default_align_by_bowtie2.sh
-│   ├── fast_align_by_bowtie2.sh
-│   ├── fast_count_sam_primary.sh
-│   ├── fast_check_strand.pl           # 链偏好分析（Perl）
 │   └── default_counting_withChrom.pl  # rRNA 序列渐进式检测（Perl）
 ├── bowtie2
 ├── examples
@@ -66,10 +60,6 @@ resolveS
 # 默认版本（双端比对）
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
-# 快速版本（单端比对，用于快速分析）
-./resolveS/bin/resolveS_fast -s sample_R1.fq.gz
-#File	Strandedness	NeedPrecise	Fwd	Rev	Fwd_Ratio	Rev_Ratio	Rel_Diff	Chi2	P_value
-#sample_R1.fq.gz	fr-unstranded	F	4142	3953	0.511674	0.488326	0.046695	4.412724	3.567184e-02
 ```
 
 将结果保存到文本文件中：
@@ -78,13 +68,11 @@ resolveS
 # 双端：使用 -o 直接写入
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz -o results.tsv
 
-# 单端：重定向 stdout
-./resolveS/bin/resolveS_fast -s sample_R1.fq.gz > results.tsv
 ```
 
-最终，`Strand_Type`（双端）/ `Strandedness`（快速版）列就是推断的结果。
+最终，`Strand_Type` 列就是推断的结果。
 
--b 参数可以批量运行。
+-b 参数可以通过 FASTQ 或 SAM 元数据批量运行。
 
 ## 脚本变体
 
@@ -92,8 +80,7 @@ resolveS 提供多个脚本变体以适应不同的使用场景：
 
 | 脚本              | 描述                                | 输入模式            | 默认 `-u` | 关键脚本                                                                                |
 | ----------------- | ----------------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------- |
-| `resolveS`      | 默认版本（双端 FASTQ 或已比对 SAM） | `-1/-2` 或 `-a` | 5M pairs    | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl`                     |
-| `resolveS_fast` | 快速版本（单端 FASTQ）              | `-s`              | 1M reads    | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl` |
+| `resolveS` | 双端 FASTQ 或已比对 SAM | `-1/-2` 或 `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
 
 ## 3. 如果您已安装 **Bowtie 2** 和 **Perl**
 
@@ -107,11 +94,7 @@ resolveS 提供多个脚本变体以适应不同的使用场景：
 resolveS/
 ├── bin/
 │   ├── resolveS
-│   ├── resolveS_fast
 │   ├── default_align_by_bowtie2.sh
-│   ├── fast_align_by_bowtie2.sh
-│   ├── fast_count_sam_primary.sh
-│   ├── fast_check_strand.pl
 │   └── default_counting_withChrom.pl
 └── ref_default/
     ├── default.1.bt2
@@ -126,7 +109,7 @@ resolveS/
 
 ## 4. 如果您偏好使用 **Conda** / **Mamba**
 
-您已经是高级用户了，您可以自行查看 `bin` 目录，修改 `default_align_by_bowtie2.sh` 或 `fast_align_by_bowtie2.sh` 中的 `BOWTIE2_BIN` 变量来配置 `bowtie2`。
+您已经是高级用户了，您可以自行查看 `bin` 目录，修改 `default_align_by_bowtie2.sh` 中的 `BOWTIE2_BIN` 变量来配置 `bowtie2`。
 
 > 您还需要下载 bowtie2 索引文件
 
@@ -153,15 +136,12 @@ mamba install bioconda::bowtie2 perl
 
 对于最终用户来说，最方便的用法是：
 
-- 双端（推荐）：`resolveS -1 R1.fq.gz -2 R2.fq.gz`
-- 单端（快速）：`resolveS_fast -s R1.fq.gz`
+- 双端 FASTQ：`resolveS -1 R1.fq.gz -2 R2.fq.gz`
+- 已比对 SAM：`resolveS -a aligned.sam`
 
-注意：`resolveS_fast` 只需要 **一个** FASTQ 文件（R1）；`resolveS` 需要 **两个** 文件（R1 + R2），除非使用 `-a` 直接输入已比对 SAM。
+`resolveS` 需要 **两个** FASTQ 文件（R1 + R2），除非使用 `-a` 直接输入已比对 SAM。
 
-两个脚本输出格式不同：
-
-- `resolveS` 输出：`File`、`Strand_Type`、`MAPQ_Filter`、`Detection_Level`、`Overall_fallback_Fwd`、`Overall_fallback_Rev`、`Overall_fallback_Fwd_Ratio`、`Overall_fallback_Rev_Ratio`、`Overall_fallback_Rel_Diff`
-- `resolveS_fast` 输出：`File`、`Strandedness`、`NeedPrecise`、`Fwd`、`Rev`、`Fwd_Ratio`、`Rev_Ratio`、`Rel_Diff`、`Chi2`、`P_value`
+`resolveS` 输出：`File`、`Strand_Type`、`MAPQ_Filter`、`Detection_Level`、`Overall_fallback_Fwd`、`Overall_fallback_Rev`、`Overall_fallback_Fwd_Ratio`、`Overall_fallback_Rev_Ratio`、`Overall_fallback_Rel_Diff`
 
 `resolveS` 输出列说明：
 
@@ -219,28 +199,6 @@ flowchart TD
 - 自适应 MAPQ 阈值：20 → 10 → 3 → 1（仅在需要时降低）
 - 默认：5M read pairs（`-u 5`）
 
-### 流程概览（快速版本：resolveS_fast）
-
-`resolveS_fast` 使用**单端比对**进行快速分析：
-
-```mermaid
-flowchart TD
-    A["输入: 仅 R1.fq"] --> B["fast_align_by_bowtie2.sh"]
-    B --> C["bowtie2 -x REF -U R1"]
-    C --> D["resolveS.sam"]
-    D --> E["fast_count_sam_primary.sh"]
-    E --> F["log.raw.SAM.counts.txt"]
-    F --> G["fast_check_strand.pl"]
-    G --> H["链特异性结果"]
-```
-
-要点：
-
-- 使用**单端**比对（`-s R1.fq`）
-- 统计 `MAPQ >= 20` 的 primary 比对（排除多重比对；简单、快速）
-- 默认：1M reads（`-u 1`）
-- 速度更快，但可能不如双端模式准确
-
 ### 判定逻辑（以当前实现为准）
 
 #### MAPQ 渐进策略（仅 resolveS）
@@ -268,7 +226,6 @@ rRNA 序列高度重复，同一条 read 可能等同地比对到多个参考拷
 - 对于多重比对的 read，Bowtie2 会把它伪随机地放到某一个位置，并赋予**很低的 MAPQ（0/1）**。
 - 因此计数阶段**按 MAPQ 过滤**（默认 `>= 20`，见上方阶梯）。这会剔除这些被伪随机放置的多重比对 read，使链偏好信号仅由唯一比对（uniquely mapped）的 read 贡献。
 - 在默认（双端）流程中，仅统计 **R1** 且要求 **proper pair**（`0x2`）；对 R1 按 MAPQ 过滤等价于把整个多重比对的 read pair 丢弃。
-- 快速（单端）流程同样应用 `MAPQ >= 20` 过滤（计入 `low_mapq` 列）。
 
 #### 链类型判定
 
@@ -282,14 +239,6 @@ flowchart TD
     F -->|是| G["fr-secondstrand"]
     F -->|否| H["fr-firststrand"]
 ```
-
-`bin/fast_check_strand.pl` 中的核心公式：
-
-- `Fwd_Ratio = Fwd / (Fwd + Rev)`
-- `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)`（有符号；正值表示正链占优）
-- `Chi2 = (Fwd - E)^2/E + (Rev - E)^2/E`, 其中 `E = (Fwd + Rev)/2`
-- `P_value = erfc(sqrt(Chi2 / 2))`
-- `NeedPrecise = T` 当 `total <= 80` 或 `0.2 < |Rel_Diff| < 0.8`
 
 # 完整程序文档
 
@@ -315,28 +264,11 @@ flowchart TD
   - FASTQ 批量：2 列（tab 分隔 `R1_path<TAB>R2_path`）
   - SAM 批量：1 列（每行一个 `SAM_path`）
 
-### resolveS_fast（单端模式）
-
-**单文件模式：**
-
-- `-s <file>`：输入 fastq 文件（仅 R1）。
-- `-p <int>`：线程数（默认：8）。
-- `-u <number>`：比对的最大 reads 数量，单位为百万（默认：1）。
-- `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
-- `-c <file>`：指定中间计数矩阵文件名（默认：log.raw.SAM.counts.txt）。
-- `-d`：调试模式 - 保留中间文件（resolveS.sam 和计数矩阵）。
-- `-h`：显示帮助信息并退出。
-
-**批量模式：**
-
-- `-b <meta_data_file>`：包含一列 fastq 文件路径的元数据文件。
-
 ### 中间文件
 
 使用 `-d`（调试模式）时，以下中间文件会被保留：
 
 - `resolveS.sam`：bowtie2 的比对输出。
-- `log.raw.SAM.counts.txt`（或通过 `-c` 自定义，仅 `resolveS_fast`）：链分析前的计数结果。
 - **stderr 输出**：启用 `-d` 时，`default_counting_withChrom.pl` 会在 stderr 打印每条 rRNA 序列的分布表，包括 rRNA 序列名称、正向/反向计数、总数、主要链方向和每条 rRNA 序列的链类型。
 
 ---
@@ -345,6 +277,5 @@ flowchart TD
 
 - `resolveS` 支持直接输入已比对的 SAM（`-a`），批量模式可自动识别 FASTQ（2 列）或 SAM（1 列）元数据文件。
 - 默认流程简化为 `align → default_counting_withChrom.pl`（按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
-- `resolveS_fast` 使用 Perl 版链偏好分析器（`bin/fast_check_strand.pl`），不再依赖 Python。
 - 默认输出到 stdout；使用 `resolveS -o` 可直接写入文件。
 - 阈值更新：`abs(Rel_Diff) <= 0.6` 判定为 `fr-unstranded`；低覆盖判定为 `insufficient-data`。

@@ -30,8 +30,6 @@ If you want software that works out of the box without installing any complex de
 # Paired-end (recommended)
 singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
-# Single-end (fast)
-singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS_fast -s sample_R1.fq.gz
 ```
 
 ## 2. Portable Program Version
@@ -48,12 +46,8 @@ resolveS
 ├── README.md
 ├── README_zh.md
 ├── bin
-│   ├── resolveS                       # Default (paired-end FASTQ or pre-aligned SAM)
-│   ├── resolveS_fast                  # Fast (single-end FASTQ)
+│   ├── resolveS                       # Paired-end FASTQ or pre-aligned SAM
 │   ├── default_align_by_bowtie2.sh
-│   ├── fast_align_by_bowtie2.sh
-│   ├── fast_count_sam_primary.sh
-│   ├── fast_check_strand.pl           # Strand bias analysis (Perl)
 │   └── default_counting_withChrom.pl  # Progressive per-rRNA-sequence detection (Perl)
 ├── bowtie2
 ├── examples
@@ -66,10 +60,6 @@ Usage:
 # Default version (paired-end)
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
-# Fast version (single-end, for quick analysis)
-./resolveS/bin/resolveS_fast -s sample_R1.fq.gz
-#File	Strandedness	NeedPrecise	Fwd	Rev	Fwd_Ratio	Rev_Ratio	Rel_Diff	Chi2	P_value
-#sample_R1.fq.gz	fr-unstranded	F	4142	3953	0.511674	0.488326	0.046695	4.412724	3.567184e-02
 ```
 
 Save the results to a text file:
@@ -78,13 +68,11 @@ Save the results to a text file:
 # Paired-end: use -o to write results
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz -o results.tsv
 
-# Single-end: redirect stdout
-./resolveS/bin/resolveS_fast -s sample_R1.fq.gz > results.tsv
 ```
 
-Finally, the `Strand_Type` (paired-end) / `Strandedness` (fast) column is the inferred result.
+Finally, the `Strand_Type` column is the inferred result.
 
-The `-b` parameter allows batch processing (FASTQ list for `resolveS_fast`, FASTQ/SAM list for `resolveS`).
+The `-b` parameter allows batch processing with FASTQ or SAM metadata.
 
 ## Script Variants
 
@@ -92,8 +80,7 @@ resolveS provides multiple script variants for different use cases:
 
 | Script          | Description                                 | Input Mode        | Default `-u` | Core Scripts                                                                          |
 | --------------- | ------------------------------------------- | ----------------- | ------------ | ------------------------------------------------------------------------------------- |
-| `resolveS`      | Default (paired-end FASTQ or pre-aligned SAM) | `-1/-2` or `-a`   | 5M pairs     | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl`                       |
-| `resolveS_fast` | Fast (single-end FASTQ)                     | `-s`              | 1M reads     | `fast_align_by_bowtie2.sh` + `fast_count_sam_primary.sh` + `fast_check_strand.pl`     |
+| `resolveS` | Paired-end FASTQ or pre-aligned SAM | `-1/-2` or `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
 
 ## 3. If you already have **Bowtie 2** and **Perl** installed
 
@@ -107,11 +94,7 @@ The final program structure should be as follows:
 resolveS/
 ├── bin/
 │   ├── resolveS
-│   ├── resolveS_fast
 │   ├── default_align_by_bowtie2.sh
-│   ├── fast_align_by_bowtie2.sh
-│   ├── fast_count_sam_primary.sh
-│   ├── fast_check_strand.pl
 │   └── default_counting_withChrom.pl
 └── ref_default/
     ├── default.1.bt2
@@ -127,7 +110,7 @@ resolveS/
 
 ## 4. If you prefer using **Conda** / **Mamba**
 
-You are already an advanced user. You can check the `bin` directory yourself and modify `BOWTIE2_BIN` variable in `default_align_by_bowtie2.sh` or `fast_align_by_bowtie2.sh` to configure `bowtie2`.
+You are already an advanced user. You can check the `bin` directory yourself and modify the `BOWTIE2_BIN` variable in `default_align_by_bowtie2.sh` to configure `bowtie2`.
 
 > You also need to download the bowtie2 index files
 
@@ -157,15 +140,12 @@ After activating the environment, proceed with the installation steps as describ
 
 For the end-user, the most convenient usage is:
 
-- Paired-end (recommended): `resolveS -1 R1.fq.gz -2 R2.fq.gz`
-- Single-end (fast): `resolveS_fast -s R1.fq.gz`
+- Paired-end FASTQ: `resolveS -1 R1.fq.gz -2 R2.fq.gz`
+- Pre-aligned SAM: `resolveS -a aligned.sam`
 
-Note: `resolveS_fast` takes **one** FASTQ file (R1 only). `resolveS` expects **two** files (R1 + R2) unless you use `-a` to supply a pre-aligned SAM.
+`resolveS` expects two FASTQ files (R1 + R2) unless you use `-a` to supply a pre-aligned SAM.
 
-Output formats differ between the two scripts:
-
-- `resolveS` outputs: `File`, `Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
-- `resolveS_fast` outputs: `File`, `Strandedness`, `NeedPrecise`, `Fwd`, `Rev`, `Fwd_Ratio`, `Rev_Ratio`, `Rel_Diff`, `Chi2`, `P_value`
+`resolveS` outputs: `File`, `Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
 
 Notes for `resolveS` output columns:
 
@@ -222,27 +202,6 @@ Key points:
 - Adaptive MAPQ thresholds: 20 → 10 → 3 → 1 (only when necessary)
 - Default: 5M read pairs (`-u 5`)
 
-### Pipeline overview (Fast: resolveS_fast)
-
-The `resolveS_fast` uses **single-end alignment** for quick analysis:
-
-```mermaid
-flowchart TD
-    A["Input: R1.fq only"] --> B["fast_align_by_bowtie2.sh"]
-    B --> C["bowtie2 -x REF -U R1"]
-    C --> D["resolveS.sam"]
-    D --> E["fast_count_sam_primary.sh"]
-    E --> F["log.raw.SAM.counts.txt"]
-    F --> G["fast_check_strand.pl"]
-    G --> H["Strandedness Result"]
-```
-
-Key points:
-- Uses **single-end** alignment (`-s R1.fq`)
-- Counts primary alignments with `MAPQ >= 20` (excludes multi-mappers; simple, fast)
-- Default: 1M reads (`-u 1`)
-- Faster but may be less accurate than paired-end mode
-
 ### Decision logic (current implementation)
 
 #### MAPQ Progressive Strategy (resolveS only)
@@ -270,7 +229,6 @@ rRNA sequences are highly repetitive, so a single read can align equally well to
 - For a multi-mapping read, Bowtie2 places it pseudo-randomly at one location and assigns a **low MAPQ (0/1)**.
 - Counting therefore **filters by MAPQ** (`>= 20` by default; see ladder above). This removes the pseudo-randomly placed multi-mappers, so the strand-bias signal is contributed only by uniquely mapped reads.
 - In the default (paired-end) pipeline, only **R1** is counted and a **proper pair** (`0x2`) is required; filtering R1 by MAPQ effectively discards the whole multi-mapping pair.
-- The fast (single-end) pipeline applies the same `MAPQ >= 20` filter (reported in the `low_mapq` column).
 
 #### Strand Type Determination
 
@@ -284,14 +242,6 @@ flowchart TD
     F -->|yes| G["fr-secondstrand"]
     F -->|no| H["fr-firststrand"]
 ```
-
-Core formulas in `bin/fast_check_strand.pl`:
-
-- `Fwd_Ratio = Fwd / (Fwd + Rev)`
-- `Rel_Diff = (Fwd - Rev) / ((Fwd + Rev) / 2)` (signed; positive = forward-biased)
-- `Chi2 = (Fwd - E)^2/E + (Rev - E)^2/E`, where `E = (Fwd + Rev)/2`
-- `P_value = erfc(sqrt(Chi2 / 2))`
-- `NeedPrecise = T` when `total <= 80` or `0.2 < |Rel_Diff| < 0.8`
 
 # Full Program Documentation
 
@@ -315,25 +265,10 @@ Core formulas in `bin/fast_check_strand.pl`:
   - FASTQ batch: 2 columns (tab-separated `R1_path<TAB>R2_path`)
   - SAM batch: 1 column (`SAM_path` per line)
 
-### resolveS_fast (Single-end mode)
-
-**Single file mode:**
-- `-s <file>`: Input fastq file (R1 only).
-- `-p <int>`: Number of threads (default: 8).
-- `-u <number>`: Maximum number of reads to align, in millions (default: 1).
-- `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
-- `-c <file>`: Set the intermediate count-matrix file name (default: log.raw.SAM.counts.txt).
-- `-d`: Debug mode - keep intermediate files (resolveS.sam and the count matrix).
-- `-h`: Show help message and exit.
-
-**Batch mode:**
-- `-b <meta_data_file>`: A metadata file with one fastq file path per line.
-
 ### Intermediate Files
 
 When using `-d` (debug mode), the following intermediate files are preserved:
 - `resolveS.sam`: The alignment output from bowtie2.
-- `log.raw.SAM.counts.txt` (or custom via `-c`, for `resolveS_fast`): The counting results before strand analysis.
 - **stderr output**: When `-d` is enabled, `default_counting_withChrom.pl` prints per-rRNA-sequence distribution tables to stderr, including rRNA sequence name, forward/reverse counts, total, major strand direction, and strand type for each rRNA sequence.
 
 ---
@@ -342,6 +277,5 @@ When using `-d` (debug mode), the following intermediate files are preserved:
 
 - `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
 - Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-rRNA-sequence voting + adaptive MAPQ).
-- `resolveS_fast` uses a Perl strand bias analyzer (`bin/fast_check_strand.pl`); Python dependency is removed.
 - Output defaults to stdout; use `resolveS -o` to write results to a file.
 - Cutoffs updated: `abs(Rel_Diff) <= 0.6` ⇒ `fr-unstranded`; low-coverage ⇒ `insufficient-data`.

@@ -77,7 +77,6 @@ Examples:
     $0 -1 sample_R1.fastq -2 sample_R2.fastq -u 2
 
 IMPORTANT: This version uses paired-end alignment.
-           For single-end data, use resolveS_fast instead.
            Use -a option if you already have a SAM file from alignment.
 
 Metadata file format for FASTQ batch (tab-separated: R1_path R2_path):

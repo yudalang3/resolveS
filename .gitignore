@@ -11,3 +11,5 @@ bin/__pycache__/
 launch_claude.sh
 
 .claude/
+
+inputData/
