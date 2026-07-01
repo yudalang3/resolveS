@@ -276,11 +276,12 @@ sub run_detection {
     my $rev = 0;
     my $tie = 0;
 
-    # --- Debug: Per-rRNA-sequence distribution ---
-    debug_print "\n--- Per-rRNA-sequence distribution (MAPQ >= $mapq_threshold) ---\n";
-    debug_print "Total rRNA sequences with valid alignments: $total_chroms\n";
-    debug_print "rRNA_seq\tfwd\trev\ttotal\tmajor\tstrand_type\n";
-
+    my @debug_rows;
+    my $chrom_width = length('rRNA_seq');
+    my $fwd_width = length('fwd');
+    my $rev_width = length('rev');
+    my $total_width = length('total');
+    my $major_width = length('major');
     for my $chrom (@sorted_chroms) {
         my $f = $chrom_fwd{$chrom} // 0;
         my $r = $chrom_rev{$chrom} // 0;
@@ -299,7 +300,26 @@ sub run_detection {
             $major = "tie";
         }
 
-        debug_print "$chrom\t$f\t$r\t$t\t$major\t$strand_type\n";
+        push @debug_rows, [$chrom, $f, $r, $t, $major, $strand_type];
+        $chrom_width = length($chrom) if length($chrom) > $chrom_width;
+        $fwd_width = length($f) if length($f) > $fwd_width;
+        $rev_width = length($r) if length($r) > $rev_width;
+        $total_width = length($t) if length($t) > $total_width;
+        $major_width = length($major) if length($major) > $major_width;
+    }
+
+    # --- Debug: Per-rRNA-sequence distribution ---
+    debug_print "\n--- Per-rRNA-sequence distribution (MAPQ >= $mapq_threshold) ---\n";
+    debug_print "Total rRNA sequences with valid alignments: $total_chroms\n";
+    debug_print sprintf(
+        "%-${chrom_width}s  %${fwd_width}s  %${rev_width}s  %${total_width}s  %-${major_width}s  %s\n",
+        'rRNA_seq', 'fwd', 'rev', 'total', 'major', 'strand_type'
+    );
+    for my $row (@debug_rows) {
+        debug_print sprintf(
+            "%-${chrom_width}s  %${fwd_width}d  %${rev_width}d  %${total_width}d  %-${major_width}s  %s\n",
+            @$row
+        );
     }
 
     my $total = $fwd + $rev;

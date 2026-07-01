@@ -13,3 +13,5 @@ launch_claude.sh
 .claude/
 
 inputData/
+
+*.log

@@ -33,3 +33,16 @@ README 更新时，**中英文都要同步更新**：
 ## 文件格式
 
 所有文本文件使用 **LF** 换行符（非 CRLF）
+
+
+## 如何运行
+
+### Windows PowerShell
+& "C:\Program Files\Git\bin\bash.exe" -lc 'cd /c/Users/yudal/Documents/GitHub/resolveS && ./bin/resolveS -h'
+
+下面可以执行程序
+& "C:\Program Files\Git\bin\bash.exe" -lc 'cd /c/Users/yudal/Documents/GitHub/resolveS && ./bin/resolveS -a inputData/SRR9844293.work/resolveS.sam'
+
+& "C:\Program Files\Git\bin\bash.exe" -lc 'cd /c/Users/yudal/Documents/GitHub/resolveS && ./bin/resolveS -a inputData/SRR9844293.work/resolveS.sam -d >stdout.log 2> stderr.log'
+
+### Linux下直接运行
