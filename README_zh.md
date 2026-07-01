@@ -231,13 +231,15 @@ rRNA 序列高度重复，同一条 read 可能等同地比对到多个参考拷
 
 ```mermaid
 flowchart TD
-    A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)"] --> B{"低覆盖?"}
+    A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)<br/>二项分布双尾 p 值：X~Binomial(total, 0.5)，统计量为 fwd"] --> B{"低覆盖?"}
     B -->|是| C["insufficient-data"]
     B -->|否| D{"abs(Rel_Diff) <= 0.6?"}
     D -->|是| E["fr-unstranded"]
-    D -->|否| F{"Rel_Diff > 0?"}
-    F -->|是| G["fr-secondstrand"]
-    F -->|否| H["fr-firststrand"]
+    D -->|否| F{"p >= 0.01?"}
+    F -->|是| E
+    F -->|否| G{"Rel_Diff > 0?"}
+    G -->|是| H["fr-secondstrand"]
+    G -->|否| I["fr-firststrand"]
 ```
 
 # 完整程序文档
@@ -278,4 +280,4 @@ flowchart TD
 - `resolveS` 支持直接输入已比对的 SAM（`-a`），批量模式可自动识别 FASTQ（2 列）或 SAM（1 列）元数据文件。
 - 默认流程简化为 `align → default_counting_withChrom.pl`（按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
 - 默认输出到 stdout；使用 `resolveS -o` 可直接写入文件。
-- 阈值更新：`abs(Rel_Diff) <= 0.6` 判定为 `fr-unstranded`；低覆盖判定为 `insufficient-data`。
+- 链方向判定需要同时满足 `abs(Rel_Diff) > 0.6` 和二项分布双尾检验 `p < 0.01`；否则该 rRNA 序列判为 `fr-unstranded`。

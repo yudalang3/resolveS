@@ -49,9 +49,9 @@
 # =============================================================================
 # STRAND_TYPE - All Possible Values:
 # =============================================================================
-#   fr-firststrand   : Reverse reads dominate (rel_diff < -0.6), e.g. dUTP
-#   fr-secondstrand  : Forward reads dominate (rel_diff > 0.6), e.g. ligation
-#   fr-unstranded    : Balanced reads (|rel_diff| <= 0.6), non-stranded
+#   fr-firststrand   : Reverse reads dominate (rel_diff < -0.6, binomial p < 0.01), e.g. dUTP
+#   fr-secondstrand  : Forward reads dominate (rel_diff > 0.6, binomial p < 0.01), e.g. ligation
+#   fr-unstranded    : Balanced or not statistically significant, non-stranded
 #   insufficient-data: No valid rRNA sequences (total = 0)
 #
 # =============================================================================
@@ -65,11 +65,14 @@
 
 use strict;
 use warnings;
+use POSIX qw(lgamma);
 
 # --- MAPQ thresholds to try in order ---
 # Lowest tier is 1 (not 0) so that MAPQ=0 pure multi-mappers are always excluded,
 # even in the most permissive fallback used for sparse data.
 my @MAPQ_LEVELS = (20, 10, 3, 1);
+use constant RELATIVE_DIFF_CUTOFF => 0.6;
+use constant BINOMIAL_PVALUE_CUTOFF => 0.01;
 
 # --- Global Configuration ---
 our $DEBUG = 0;
@@ -89,6 +92,32 @@ die "Error: Input file '$input_file' not found!\n" unless -f $input_file;
 # --- Debug helper ---
 sub debug_print {
     print STDERR @_ if $DEBUG;
+}
+
+sub binomial_two_tailed_pvalue {
+    my ($successes, $trials) = @_;
+    return 1 if $trials <= 0;
+
+    my $lower_tail_count = $successes < ($trials - $successes)
+        ? $successes
+        : ($trials - $successes);
+    my $log_probability = lgamma($trials + 1)
+        - lgamma($lower_tail_count + 1)
+        - lgamma($trials - $lower_tail_count + 1)
+        - $trials * log(2);
+
+    my $term = exp($log_probability);
+    my $tail_probability = $term;
+
+    for (my $i = $lower_tail_count; $i > 0; $i--) {
+        $term *= $i / ($trials - $i + 1);
+        last if $term == 0;
+        $tail_probability += $term;
+        last if $term < $tail_probability * 1e-15;
+    }
+
+    my $pvalue = 2 * $tail_probability;
+    return $pvalue > 1 ? 1 : $pvalue;
 }
 
 # === Core detection logic (wrapped in sub for multiple calls) ===
@@ -166,7 +195,8 @@ sub run_detection {
         return 'insufficient-data' if $total < 18;
         my $mean = $total / 2.0;
         my $relative_diff = $mean > 0 ? ($f - $r) / $mean : 0;
-        return 'fr-unstranded' if abs($relative_diff) <= 0.6;
+        return 'fr-unstranded' if abs($relative_diff) <= RELATIVE_DIFF_CUTOFF;
+        return 'fr-unstranded' if binomial_two_tailed_pvalue($f, $total) >= BINOMIAL_PVALUE_CUTOFF;
         return $relative_diff > 0 ? 'fr-secondstrand' : 'fr-firststrand';
     };
 

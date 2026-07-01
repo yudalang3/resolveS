@@ -234,13 +234,15 @@ rRNA sequences are highly repetitive, so a single read can align equally well to
 
 ```mermaid
 flowchart TD
-    A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)"] --> B{"low coverage?"}
+    A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)<br/>Binomial two-tailed p: X~Binomial(total, 0.5), statistic=fwd"] --> B{"low coverage?"}
     B -->|yes| C["insufficient-data"]
     B -->|no| D{"abs(Rel_Diff) <= 0.6?"}
     D -->|yes| E["fr-unstranded"]
-    D -->|no| F{"Rel_Diff > 0?"}
-    F -->|yes| G["fr-secondstrand"]
-    F -->|no| H["fr-firststrand"]
+    D -->|no| F{"p >= 0.01?"}
+    F -->|yes| E
+    F -->|no| G{"Rel_Diff > 0?"}
+    G -->|yes| H["fr-secondstrand"]
+    G -->|no| I["fr-firststrand"]
 ```
 
 # Full Program Documentation
@@ -278,4 +280,4 @@ When using `-d` (debug mode), the following intermediate files are preserved:
 - `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
 - Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-rRNA-sequence voting + adaptive MAPQ).
 - Output defaults to stdout; use `resolveS -o` to write results to a file.
-- Cutoffs updated: `abs(Rel_Diff) <= 0.6` ⇒ `fr-unstranded`; low-coverage ⇒ `insufficient-data`.
+- Strand calls now require both `abs(Rel_Diff) > 0.6` and binomial two-tailed `p < 0.01`; otherwise the rRNA sequence is treated as `fr-unstranded`.

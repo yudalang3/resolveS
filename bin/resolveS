@@ -47,7 +47,7 @@ fi
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.1.8
+This is resolveS version 0.1.9
 Usage: $0 [OPTIONS]
 
 Options:
