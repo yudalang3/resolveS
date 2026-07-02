@@ -1,0 +1,112 @@
+#!/bin/bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/resolveS_sam_modes.XXXXXX")"
+
+write_paired_sam() {
+    local path="$1"
+
+    {
+        printf '@HD\tVN:1.6\tSO:unsorted\n'
+        printf '@SQ\tSN:chr1\tLN:1000\n'
+        printf '@SQ\tSN:chr2\tLN:1000\n'
+        printf '@SQ\tSN:chr3\tLN:1000\n'
+
+        local read_id=0
+        local chrom
+        local i
+        for chrom in chr1 chr2 chr3; do
+            for ((i = 1; i <= 20; i++)); do
+                read_id=$((read_id + 1))
+                printf 'read%s\t67\t%s\t1\t60\t1M\t=\t1\t0\tA\tI\n' "$read_id" "$chrom"
+            done
+        done
+    } > "$path"
+}
+
+write_single_sam() {
+    local path="$1"
+
+    {
+        printf '@HD\tVN:1.6\tSO:unsorted\n'
+        printf '@SQ\tSN:chr1\tLN:1000\n'
+        printf '@SQ\tSN:chr2\tLN:1000\n'
+        printf '@SQ\tSN:chr3\tLN:1000\n'
+
+        local read_id=0
+        local chrom
+        local i
+        for chrom in chr1 chr2 chr3; do
+            for ((i = 1; i <= 20; i++)); do
+                read_id=$((read_id + 1))
+                printf 'read%s\t0\t%s\t1\t60\t1M\t*\t0\t0\tA\tI\n' "$read_id" "$chrom"
+            done
+        done
+    } > "$path"
+}
+
+assert_success_output() {
+    local stdout="$1"
+    local strand_type
+    local mapq_filter
+
+    strand_type="$(awk 'NR == 2 { print $2 }' "$stdout")"
+    mapq_filter="$(awk 'NR == 2 { print $3 }' "$stdout")"
+
+    if [[ -z "$strand_type" ]]; then
+        echo "FAIL: missing Strand_Type in $stdout" >&2
+        cat "$stdout" >&2
+        return 1
+    fi
+
+    if [[ ! "$mapq_filter" =~ ^MAPQ-(20|10|3|1)$ ]]; then
+        echo "FAIL: unexpected MAPQ_Filter '$mapq_filter' in $stdout" >&2
+        cat "$stdout" >&2
+        return 1
+    fi
+}
+
+assert_fails_with() {
+    local expected="$1"
+    shift
+
+    local stdout="$TMP_DIR/fail.stdout"
+    local stderr="$TMP_DIR/fail.stderr"
+
+    if "$@" > "$stdout" 2> "$stderr"; then
+        echo "FAIL: command unexpectedly succeeded: $*" >&2
+        cat "$stdout" >&2
+        cat "$stderr" >&2
+        return 1
+    fi
+
+    if ! grep -Fq "$expected" "$stderr"; then
+        echo "FAIL: expected stderr to contain: $expected" >&2
+        cat "$stderr" >&2
+        return 1
+    fi
+}
+
+PAIRED_SAM="$TMP_DIR/paired.sam"
+SINGLE_SAM="$TMP_DIR/single.sam"
+write_paired_sam "$PAIRED_SAM"
+write_single_sam "$SINGLE_SAM"
+
+"$REPO_ROOT/bin/resolveS" -a "$PAIRED_SAM" -m 2 > "$TMP_DIR/paired.stdout" 2> "$TMP_DIR/paired.stderr"
+assert_success_output "$TMP_DIR/paired.stdout"
+
+"$REPO_ROOT/bin/resolveS" -a "$SINGLE_SAM" -m 1 > "$TMP_DIR/single.stdout" 2> "$TMP_DIR/single.stderr"
+assert_success_output "$TMP_DIR/single.stdout"
+
+assert_fails_with "SAM input requires -m" "$REPO_ROOT/bin/resolveS" -a "$PAIRED_SAM"
+assert_fails_with "use -m 2" "$REPO_ROOT/bin/resolveS" -a "$PAIRED_SAM" -m 1
+assert_fails_with "use -m 1" "$REPO_ROOT/bin/resolveS" -a "$SINGLE_SAM" -m 2
+
+"$REPO_ROOT/bin/resolveS" -a "$PAIRED_SAM" -m 2 -p 8 -u 1 > "$TMP_DIR/warn.stdout" 2> "$TMP_DIR/warn.stderr"
+assert_success_output "$TMP_DIR/warn.stdout"
+grep -Fq "[WARN] -p is ignored for SAM input because no alignment is run" "$TMP_DIR/warn.stderr"
+grep -Fq "[WARN] -u is ignored for SAM input because no alignment is run" "$TMP_DIR/warn.stderr"
+
+echo "SAM explicit mode tests passed"
+echo "Temporary test files retained at: $TMP_DIR" >&2

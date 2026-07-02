@@ -1,3 +1,3 @@
-# Batch SAM metadata file
+# Batch paired-end SAM metadata file
 # Format: one SAM file path per line
 examples/test_outputs/batch_sam_inputs/pair.sam

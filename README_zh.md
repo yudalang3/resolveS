@@ -22,21 +22,26 @@ resolveS 是一款旨在即时解决这一问题的高性能工具。它**超快
 
 如果您偏好 `一步到位的解决方案`，不想安装任何依赖，任何环境都想直接能运行。
 
-那么就下载 `resolveS_singularity_v0.1.x.sif` 或者 `resolveS_apptainer_v0.1.x.sif`。这是一套即用型且省时的 `解决方案`。无需安装任何东西！
+那么就下载 `resolveS_singularity_v0.2.x.sif` 或者 `resolveS_apptainer_v0.2.x.sif`。这是一套即用型且省时的 `解决方案`。无需安装任何东西！
 
 如果您希望获得开箱即用的软件，不想安装任何复杂的依赖：
 
 ```bash
-# 双端（推荐）
-singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
+# 单端 FASTQ
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -1 sample.fastq.gz
 
+# 双端 FASTQ
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
+
+# 已比对的单端 SAM
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -a aligned.sam -m 1
 ```
 
 ## 2. 绿色免安装版本 portable_program
 
 如果您不想了解容器的使用，想直接使用软件，且不想安装任何依赖，可以使用免安装版本。
 
-那么就下载 `portable_program_v0.1.x.tar.gz`，然后解压 `tar -xvf ...`
+那么就下载 `portable_program_v0.2.x.tar.gz`，然后解压 `tar -xvf ...`
 
 得到以下的程序，解压之后的内容如下：
 
@@ -46,8 +51,10 @@ resolveS
 ├── README.md
 ├── README_zh.md
 ├── bin
-│   ├── resolveS                       # 双端 FASTQ 或已比对 SAM
+│   ├── resolveS                       # 单端/双端 FASTQ 或显式模式 SAM
 │   ├── default_align_by_bowtie2.sh
+│   ├── default_align_single_by_bowtie2.sh
+│   ├── auto_counting_withChrom.pl     # 支持 single/pair mode 的计数脚本
 │   └── default_counting_withChrom.pl  # rRNA 序列渐进式检测（Perl）
 ├── bowtie2
 ├── examples
@@ -57,7 +64,10 @@ resolveS
 使用方法：
 
 ```bash
-# 默认版本（双端比对）
+# 单端 FASTQ
+./resolveS/bin/resolveS -1 sample.fastq.gz
+
+# 双端 FASTQ
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
 ```
@@ -65,7 +75,7 @@ resolveS
 将结果保存到文本文件中：
 
 ```bash
-# 双端：使用 -o 直接写入
+# 使用 -o 直接写入
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz -o results.tsv
 
 ```
@@ -80,7 +90,7 @@ resolveS 提供多个脚本变体以适应不同的使用场景：
 
 | 脚本              | 描述                                | 输入模式            | 默认 `-u` | 关键脚本                                                                                |
 | ----------------- | ----------------------------------- | ------------------- | ----------- | --------------------------------------------------------------------------------------- |
-| `resolveS` | 双端 FASTQ 或已比对 SAM | `-1/-2` 或 `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
+| `resolveS` | 单端/双端 FASTQ 或显式模式 SAM | `-1`、`-1/-2` 或 `-a ... -m` | 5M reads 或 pairs | `default_align*_by_bowtie2.sh` + `auto_counting_withChrom.pl` |
 
 ## 3. 如果您已安装 **Bowtie 2** 和 **Perl**
 
@@ -95,6 +105,8 @@ resolveS/
 ├── bin/
 │   ├── resolveS
 │   ├── default_align_by_bowtie2.sh
+│   ├── default_align_single_by_bowtie2.sh
+│   ├── auto_counting_withChrom.pl
 │   └── default_counting_withChrom.pl
 └── ref_default/
     ├── default.1.bt2
@@ -136,10 +148,12 @@ mamba install bioconda::bowtie2 perl
 
 对于最终用户来说，最方便的用法是：
 
+- 单端 FASTQ：`resolveS -1 sample.fastq.gz`
 - 双端 FASTQ：`resolveS -1 R1.fq.gz -2 R2.fq.gz`
-- 已比对 SAM：`resolveS -a aligned.sam`
+- 单端 SAM：`resolveS -a aligned.sam -m 1`
+- 双端 SAM：`resolveS -a aligned.sam -m 2`
 
-`resolveS` 需要 **两个** FASTQ 文件（R1 + R2），除非使用 `-a` 直接输入已比对 SAM。
+FASTQ 模式会根据 `-1`/`-2` 自动判断。SAM 模式不会自动判断：`-m 1` 表示单端 SAM，`-m 2` 表示双端 SAM。`-p` 和 `-u` 对 SAM 输入无效，如果传入会输出 warning。
 
 `resolveS` 输出：`File`、`Strand_Type`、`MAPQ_Filter`、`Detection_Level`、`Overall_fallback_Fwd`、`Overall_fallback_Rev`、`Overall_fallback_Fwd_Ratio`、`Overall_fallback_Rev_Ratio`、`Overall_fallback_Rel_Diff`
 
@@ -180,24 +194,24 @@ mamba install bioconda::bowtie2 perl
 
 ### 流程概览（默认版本：resolveS）
 
-默认的 `resolveS` 使用**双端比对**（或输入已比对 SAM），并进行**按 rRNA 序列渐进式检测**：
+默认的 `resolveS` 使用**单端或双端比对**（或输入显式指定模式的已比对 SAM），并进行**按 rRNA 序列渐进式检测**：
 
 ```mermaid
 flowchart TD
-    A["输入: R1+R2 FASTQ（或 -a SAM）"] --> B["(可选) default_align_by_bowtie2.sh"]
-    B --> C["bowtie2 → resolveS.sam"]
-    C --> D["default_counting_withChrom.pl"]
+    A["输入: 单端 FASTQ、双端 FASTQ 或 -a -m SAM"] --> B["(可选) bowtie2 比对"]
+    B --> C["SAM"]
+    C --> D["auto_counting_withChrom.pl"]
     D --> E["rRNA 序列渐进式投票 + 自适应 MAPQ"]
     E --> F["Strand_Type + Detection_Level"]
 ```
 
 要点：
 
-- 使用**双端**比对（`-1 R1.fq -2 R2.fq`）
-- 也支持直接输入 SAM（`-a aligned.sam`）
+- 支持**单端**比对（`-1 sample.fq`）或**双端**比对（`-1 R1.fq -2 R2.fq`）
+- 直接输入 SAM 时必须显式指定模式（`-a aligned.sam -m 1` 或 `-a aligned.sam -m 2`）
 - 按 top rRNA 序列渐进式检测（3/3 → 4/5 → 6/7 → 7/8），必要时走 fallback
 - 自适应 MAPQ 阈值：20 → 10 → 3 → 1（仅在需要时降低）
-- 默认：5M read pairs（`-u 5`）
+- 默认：单端 FASTQ 为 5M reads，双端 FASTQ 为 5M read pairs（`-u 5`）
 
 ### 判定逻辑（以当前实现为准）
 
@@ -246,15 +260,16 @@ flowchart TD
 
 ## 参数说明
 
-### resolveS（双端 FASTQ 或已比对 SAM）
+### resolveS（单端/双端 FASTQ 或显式模式 SAM）
 
 **单样本模式：**
 
-- `-1 <file>`：R1（第一读段）fastq 文件。
-- `-2 <file>`：R2（第二读段）fastq 文件。
+- `-1 <file>`：FASTQ 文件。只有 `-1` 时运行单端 FASTQ；同时有 `-1` 和 `-2` 时运行双端 FASTQ。
+- `-2 <file>`：双端 FASTQ 的 R2 文件。
 - `-a <file>`：输入已比对的 SAM：跳过比对步骤，直接分析 SAM。
-- `-p <int>`：线程数（默认：8）。
-- `-u <number>`：比对的最大 read pairs 数量，单位为百万（默认：5）。
+- `-m <1|2>`：只用于 SAM 输入。`1` = 单端 SAM，`2` = 双端 SAM。`-a` 或 SAM batch 必须传；FASTQ 输入禁止传。
+- `-p <int>`：比对线程数（默认：8）。SAM 输入会忽略。
+- `-u <number>`：FASTQ 比对数量上限，单位为百万（默认：5）。单端表示 reads，双端表示 read pairs。SAM 输入会忽略。
 - `-r <path>`：参考基因组数据库路径，可以是任何 bowtie2 索引（默认：../ref_default/default）。
 - `-o <file>`：将推断结果写入文件（默认：stdout）。
 - `-d`：调试模式 - 保留中间文件，并在 stderr 打印染色体分布摘要。
@@ -263,21 +278,25 @@ flowchart TD
 **批量模式：**
 
 - `-b <meta_data_file>`：元数据文件（自动识别）：
-  - FASTQ 批量：2 列（tab 分隔 `R1_path<TAB>R2_path`）
-  - SAM 批量：1 列（每行一个 `SAM_path`）
+  - 单端 FASTQ 批量：每行 1 个 FASTQ 路径
+  - 双端 FASTQ 批量：2 列（tab 分隔 `R1_path<TAB>R2_path`）
+  - SAM 批量：每行 1 个 SAM 路径，并且必须传 `-m 1` 或 `-m 2`
 
 ### 中间文件
 
 使用 `-d`（调试模式）时，以下中间文件会被保留：
 
-- `resolveS.sam`：bowtie2 的比对输出。
-- **stderr 输出**：启用 `-d` 时，`default_counting_withChrom.pl` 会在 stderr 打印每条 rRNA 序列的分布表，包括 rRNA 序列名称、正向/反向计数、总数、主要链方向和每条 rRNA 序列的链类型。
+- `resolveS.sam`：非 batch FASTQ 运行时的 bowtie2 比对输出。
+- `resolveS.sample_0001.sam`、`resolveS.sample_0002.sam` 等：FASTQ batch 中每个样本独立的比对输出。
+- **stderr 输出**：启用 `-d` 时，`auto_counting_withChrom.pl` 会在 stderr 打印每条 rRNA 序列的分布表，包括 rRNA 序列名称、正向/反向计数、总数、主要链方向和每条 rRNA 序列的链类型。
 
 ---
 
-## 更新摘要（v0.1.x）
+## 更新摘要（v0.2.0）
 
-- `resolveS` 支持直接输入已比对的 SAM（`-a`），批量模式可自动识别 FASTQ（2 列）或 SAM（1 列）元数据文件。
-- 默认流程简化为 `align → default_counting_withChrom.pl`（按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
+- `resolveS` 支持单端 FASTQ 输入（`-1 sample.fastq.gz`），并保持双端 FASTQ 输入（`-1 R1 -2 R2`）。
+- 已比对 SAM 输入现在必须显式指定模式：`-m 1` 表示单端 SAM，`-m 2` 表示双端 SAM。
+- 批量元数据支持同质的单端 FASTQ、双端 FASTQ 或 SAM batch。
+- 默认流程为 `align → auto_counting_withChrom.pl`（支持 single/pair mode 的按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
 - 默认输出到 stdout；使用 `resolveS -o` 可直接写入文件。
 - 链方向判定需要同时满足 `abs(Rel_Diff) > 0.6` 和二项分布双尾检验 `p < 0.01`；否则该 rRNA 序列判为 `fr-unstranded`。

@@ -1,0 +1,2 @@
+File	Strand_Type	MAPQ_Filter	Detection_Level	Overall_fallback_Fwd	Overall_fallback_Rev	Overall_fallback_Fwd_Ratio	Overall_fallback_Rev_Ratio	Overall_fallback_Rel_Diff
+/mnt/yusim/dalang/projects/wnt_act_data/raw_data/GSE103492/raw/SRR6006665.fastq.gz	fr-secondstrand	MAPQ-20	multi-of8-fallback	42	10	0.807692307692308	0.192307692307692	1.23076923076923

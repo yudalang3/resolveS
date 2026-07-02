@@ -1,0 +1,2 @@
+File	Strand_Type	MAPQ_Filter	Detection_Level	Overall_fallback_Fwd	Overall_fallback_Rev	Overall_fallback_Fwd_Ratio	Overall_fallback_Rev_Ratio	Overall_fallback_Rel_Diff
+/home/dell/projects/estimate_strand4NGS/formal_program/resolveS/examples/test_outputs/pair_fastq/resolveS.sam	fr-unstranded	MAPQ-20	3of3	15	15	0.5	0.5	0

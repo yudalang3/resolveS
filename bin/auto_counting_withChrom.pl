@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# A script to count rRNA reference sequences from paired-end SAM file
+# A script to count rRNA reference sequences from single-end or paired-end SAM file
 # Progressive strand detection: check top 3, then 5, then 7, then 8 rRNA sequences
 # 渐进式判断：前3一致->前5有4个一致->前7有6个一致->前8对半开则fail
 #
@@ -77,9 +77,19 @@ use constant BINOMIAL_PVALUE_CUTOFF => 0.01;
 # --- Global Configuration ---
 our $DEBUG = 0;
 
+sub usage {
+    return "Usage: $0 <input_sam_file> [output_file] [index_str] [debug=0] <mode>\n"
+         . "  mode: single | pair\n";
+}
+
 # --- Input Handling ---
-if (@ARGV < 1) {
-    die "Usage: $0 <input_sam_file> [output_file] [index_str] [debug=0]\n";
+if (@ARGV < 2) {
+    die usage();
+}
+
+my $mode = pop @ARGV;
+if ($mode ne 'single' && $mode ne 'pair') {
+    die "Error: Invalid mode '$mode' (expected final argument 'single' or 'pair'; with resolveS use -m 1 or -m 2)\n";
 }
 
 my $input_file = $ARGV[0];
@@ -92,6 +102,34 @@ die "Error: Input file '$input_file' not found!\n" unless -f $input_file;
 # --- Debug helper ---
 sub debug_print {
     print STDERR @_ if $DEBUG;
+}
+
+sub validate_sam_mode {
+    my ($file, $expected_mode) = @_;
+    my $alignment_records = 0;
+
+    open my $fh, '<', $file or die "Cannot open $file: $!\n";
+    while (<$fh>) {
+        next if /^@/;
+        chomp;
+        next if $_ eq '';
+
+        my @fields = split /\t/;
+        next if @fields < 2;
+
+        my $flag = $fields[1];
+        $alignment_records++;
+
+        if ($expected_mode eq 'single' && ($flag & 0x1)) {
+            die "SAM contains paired-end records but single mode was selected; use -m 2 with resolveS or mode 'pair' when calling this script directly\n";
+        }
+        if ($expected_mode eq 'pair' && !($flag & 0x1)) {
+            die "SAM contains single-end records but pair mode was selected; use -m 1 with resolveS or mode 'single' when calling this script directly\n";
+        }
+    }
+    close $fh;
+
+    die "No alignment records found in SAM file\n" if $alignment_records == 0;
 }
 
 sub binomial_two_tailed_pvalue {
@@ -138,14 +176,17 @@ sub run_detection {
         next if /^@/;
         chomp;
         my @fields = split /\t/;
+        next if @fields < 5;
         my $flag = $fields[1];
         my $chrom = $fields[2];
         my $mapq = $fields[4];
 
-        next unless ($flag & 0x1);
-        next unless ($flag & 0x40);
+        if ($mode eq 'pair') {
+            next unless ($flag & 0x1);
+            next unless ($flag & 0x40);
+        }
 
-        if (($flag & 0x4) || ($flag & 0x8)) {
+        if (($flag & 0x4) || ($mode eq 'pair' && ($flag & 0x8))) {
             next;
         }
         if ($flag & 0x100) {
@@ -157,7 +198,7 @@ sub run_detection {
         if ($mapq < $mapq_threshold) {
             next;
         }
-        if (!($flag & 0x2)) {
+        if ($mode eq 'pair' && !($flag & 0x2)) {
             next;
         }
 
@@ -378,6 +419,8 @@ sub run_detection {
         detection_level => $detection_level,
     };
 }
+
+validate_sam_mode($input_file, $mode);
 
 # === Main: Adaptive MAPQ loop ===
 my $result;

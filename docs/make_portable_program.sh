@@ -1,9 +1,9 @@
 #!/bin/bash
 
-VERSION="0.0.8"
+VERSION="0.2.0"
 
-#tar -cvJf "resolveS_portable_v${VERSION}.tar.xz" \
-tar -cvf "resolveS_portable_v${VERSION}.tar" \
+#tar -cvf "resolveS_portable_v${VERSION}.tar" \
+tar -cvJf "resolveS_portable_v${VERSION}.tar.xz" \
     --exclude='resolveS/db' \
     --exclude='resolveS/docs' \
     --exclude='resolveS/.git' \

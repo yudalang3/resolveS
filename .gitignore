@@ -4,6 +4,7 @@ ref_sensitive/
 bowtie2/
 ref_bowtie2/
 examples/data/
+examples/test_outputs/
 
 bin/__pycache__/
 

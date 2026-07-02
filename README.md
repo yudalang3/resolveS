@@ -22,21 +22,26 @@ Please refer to `$ resolveS -h` for more information on the version and usage.
 
 If you prefer a `one-step solution`, don't want to install any dependencies, and want to run directly in any environment.
 
-Then download `resolveS_singularity_v0.1.x.sif` or `resolveS_apptainer_v0.1.x.sif`. This is a ready-to-use and time-saving `solution`. No need to install anything!
+Then download `resolveS_singularity_v0.2.x.sif` or `resolveS_apptainer_v0.2.x.sif`. This is a ready-to-use and time-saving `solution`. No need to install anything!
 
 If you want software that works out of the box without installing any complex dependencies:
 
 ```bash
-# Paired-end (recommended)
-singularity exec /path/to/resolveS_singularity_v0.1.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
+# Single-end FASTQ
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -1 sample.fastq.gz
 
+# Paired-end FASTQ
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
+
+# Pre-aligned single-end SAM
+singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -a aligned.sam -m 1
 ```
 
 ## 2. Portable Program Version
 
 If you don't want to learn about containers, want to use the software directly, and don't want to install any dependencies, you can use the portable version.
 
-Then download `portable_program_v0.1.x.tar.gz`, and extract it with `tar -xvf ...`
+Then download `portable_program_v0.2.x.tar.gz`, and extract it with `tar -xvf ...`
 
 You will get the following program structure after extraction:
 
@@ -46,8 +51,10 @@ resolveS
 ├── README.md
 ├── README_zh.md
 ├── bin
-│   ├── resolveS                       # Paired-end FASTQ or pre-aligned SAM
+│   ├── resolveS                       # Single-end/paired-end FASTQ or explicit-mode SAM
 │   ├── default_align_by_bowtie2.sh
+│   ├── default_align_single_by_bowtie2.sh
+│   ├── auto_counting_withChrom.pl     # Mode-aware single/pair counting
 │   └── default_counting_withChrom.pl  # Progressive per-rRNA-sequence detection (Perl)
 ├── bowtie2
 ├── examples
@@ -57,7 +64,10 @@ resolveS
 Usage:
 
 ```bash
-# Default version (paired-end)
+# Single-end FASTQ
+./resolveS/bin/resolveS -1 sample.fastq.gz
+
+# Paired-end FASTQ
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz
 
 ```
@@ -65,7 +75,7 @@ Usage:
 Save the results to a text file:
 
 ```bash
-# Paired-end: use -o to write results
+# Use -o to write results
 ./resolveS/bin/resolveS -1 sample_R1.fq.gz -2 sample_R2.fq.gz -o results.tsv
 
 ```
@@ -80,7 +90,7 @@ resolveS provides multiple script variants for different use cases:
 
 | Script          | Description                                 | Input Mode        | Default `-u` | Core Scripts                                                                          |
 | --------------- | ------------------------------------------- | ----------------- | ------------ | ------------------------------------------------------------------------------------- |
-| `resolveS` | Paired-end FASTQ or pre-aligned SAM | `-1/-2` or `-a` | 5M pairs | `default_align_by_bowtie2.sh` + `default_counting_withChrom.pl` |
+| `resolveS` | Single-end/paired-end FASTQ or explicit-mode SAM | `-1`, `-1/-2`, or `-a ... -m` | 5M reads or pairs | `default_align*_by_bowtie2.sh` + `auto_counting_withChrom.pl` |
 
 ## 3. If you already have **Bowtie 2** and **Perl** installed
 
@@ -95,6 +105,8 @@ resolveS/
 ├── bin/
 │   ├── resolveS
 │   ├── default_align_by_bowtie2.sh
+│   ├── default_align_single_by_bowtie2.sh
+│   ├── auto_counting_withChrom.pl
 │   └── default_counting_withChrom.pl
 └── ref_default/
     ├── default.1.bt2
@@ -140,10 +152,12 @@ After activating the environment, proceed with the installation steps as describ
 
 For the end-user, the most convenient usage is:
 
+- Single-end FASTQ: `resolveS -1 sample.fastq.gz`
 - Paired-end FASTQ: `resolveS -1 R1.fq.gz -2 R2.fq.gz`
-- Pre-aligned SAM: `resolveS -a aligned.sam`
+- Single-end SAM: `resolveS -a aligned.sam -m 1`
+- Paired-end SAM: `resolveS -a aligned.sam -m 2`
 
-`resolveS` expects two FASTQ files (R1 + R2) unless you use `-a` to supply a pre-aligned SAM.
+FASTQ mode is inferred automatically from `-1`/`-2`. SAM mode is never inferred: `-m 1` means single-end SAM and `-m 2` means paired-end SAM. `-p` and `-u` are ignored for SAM input and emit warnings when supplied.
 
 `resolveS` outputs: `File`, `Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
 
@@ -184,23 +198,24 @@ The `Detection_Level` column in `resolveS` output indicates the confidence of st
 
 ### Pipeline overview (Default: resolveS)
 
-The default `resolveS` uses **paired-end alignment** (or a pre-aligned SAM) and performs **progressive per-rRNA-sequence detection**:
+The default `resolveS` uses **single-end or paired-end alignment** (or an explicitly typed pre-aligned SAM) and performs **progressive per-rRNA-sequence detection**:
 
 ```mermaid
 flowchart TD
-    A["Input: R1+R2 FASTQ (or SAM via -a)"] --> B["(optional) default_align_by_bowtie2.sh"]
-    B --> C["bowtie2 → resolveS.sam"]
-    C --> D["default_counting_withChrom.pl"]
+    A["Input: single FASTQ, paired FASTQ, or SAM via -a -m"] --> B["(optional) bowtie2 alignment"]
+    B --> C["SAM"]
+    C --> D["auto_counting_withChrom.pl"]
     D --> E["Progressive rRNA sequence voting + adaptive MAPQ"]
     E --> F["Strand_Type + Detection_Level"]
 ```
 
 Key points:
 
-- Uses **paired-end** alignment (`-1 R1.fq -2 R2.fq`) by default, or accepts a SAM file (`-a aligned.sam`)
+- Uses **single-end** alignment (`-1 sample.fq`) or **paired-end** alignment (`-1 R1.fq -2 R2.fq`)
+- Accepts a pre-aligned SAM file only with explicit mode (`-a aligned.sam -m 1` or `-a aligned.sam -m 2`)
 - Progressive detection based on top rRNA sequences (3/3 → 4/5 → 6/7 → 7/8), with fallback when needed
 - Adaptive MAPQ thresholds: 20 → 10 → 3 → 1 (only when necessary)
-- Default: 5M read pairs (`-u 5`)
+- Default: 5M reads for single-end FASTQ or 5M read pairs for paired-end FASTQ (`-u 5`)
 
 ### Decision logic (current implementation)
 
@@ -228,7 +243,7 @@ rRNA sequences are highly repetitive, so a single read can align equally well to
 - **Bowtie2 runs in default mode** (no `-k`/`-a`), so each read produces **exactly one** best alignment — multiple alignments per read are never reported (no secondary `0x100` records).
 - For a multi-mapping read, Bowtie2 places it pseudo-randomly at one location and assigns a **low MAPQ (0/1)**.
 - Counting therefore **filters by MAPQ** (`>= 20` by default; see ladder above). This removes the pseudo-randomly placed multi-mappers, so the strand-bias signal is contributed only by uniquely mapped reads.
-- In the default (paired-end) pipeline, only **R1** is counted and a **proper pair** (`0x2`) is required; filtering R1 by MAPQ effectively discards the whole multi-mapping pair.
+- In the paired-end pipeline, only **R1** is counted and a **proper pair** (`0x2`) is required; filtering R1 by MAPQ effectively discards the whole multi-mapping pair.
 
 #### Strand Type Determination
 
@@ -249,14 +264,15 @@ flowchart TD
 
 ## Parameters Explanation
 
-### resolveS (Paired-end FASTQ or pre-aligned SAM)
+### resolveS (single-end/paired-end FASTQ or pre-aligned SAM)
 
 **Single sample mode:**
-- `-1 <file>`: R1 (first read) fastq file.
-- `-2 <file>`: R2 (second read) fastq file.
+- `-1 <file>`: FASTQ file. With only `-1`, runs single-end FASTQ mode; with `-1` and `-2`, runs paired-end FASTQ mode.
+- `-2 <file>`: R2 fastq file for paired-end FASTQ mode.
 - `-a <file>`: Pre-aligned SAM file mode: skip alignment and use an existing SAM file.
-- `-p <int>`: Number of threads (default: 8).
-- `-u <number>`: Maximum number of read pairs to align, in millions (default: 5).
+- `-m <1|2>`: SAM input only. `1` = single-end SAM, `2` = paired-end SAM. Required with `-a` or SAM batch; invalid for FASTQ input.
+- `-p <int>`: Number of alignment threads (default: 8). Ignored for SAM input.
+- `-u <number>`: FASTQ alignment limit, in millions (default: 5). In single-end mode this means reads; in paired-end mode this means read pairs. Ignored for SAM input.
 - `-r <path>`: Reference genome database path, can be any bowtie2 index (default: ../ref_default/default).
 - `-o <file>`: Output the inference results to the file (default: stdout).
 - `-d`: Debug mode - keep intermediate files and print per-rRNA-sequence summary to stderr.
@@ -264,20 +280,24 @@ flowchart TD
 
 **Batch mode:**
 - `-b <meta_data_file>`: Metadata file (auto-detected):
-  - FASTQ batch: 2 columns (tab-separated `R1_path<TAB>R2_path`)
-  - SAM batch: 1 column (`SAM_path` per line)
+  - Single-end FASTQ batch: 1 FASTQ path per line
+  - Paired-end FASTQ batch: 2 columns (tab-separated `R1_path<TAB>R2_path`)
+  - SAM batch: 1 SAM path per line and requires `-m 1` or `-m 2`
 
 ### Intermediate Files
 
 When using `-d` (debug mode), the following intermediate files are preserved:
-- `resolveS.sam`: The alignment output from bowtie2.
-- **stderr output**: When `-d` is enabled, `default_counting_withChrom.pl` prints per-rRNA-sequence distribution tables to stderr, including rRNA sequence name, forward/reverse counts, total, major strand direction, and strand type for each rRNA sequence.
+- `resolveS.sam`: The alignment output from bowtie2 for non-batch FASTQ runs.
+- `resolveS.sample_0001.sam`, `resolveS.sample_0002.sam`, ...: Per-sample alignment output for FASTQ batch runs.
+- **stderr output**: When `-d` is enabled, `auto_counting_withChrom.pl` prints per-rRNA-sequence distribution tables to stderr, including rRNA sequence name, forward/reverse counts, total, major strand direction, and strand type for each rRNA sequence.
 
 ---
 
-## What's New (v0.1.x)
+## What's New (v0.2.0)
 
-- `resolveS` supports pre-aligned SAM input (`-a`) and auto-detecting batch metadata (FASTQ 2-column or SAM 1-column).
-- Default pipeline is simplified to `align → default_counting_withChrom.pl` (progressive per-rRNA-sequence voting + adaptive MAPQ).
+- `resolveS` supports single-end FASTQ input (`-1 sample.fastq.gz`) and keeps paired-end FASTQ input (`-1 R1 -2 R2`).
+- Pre-aligned SAM input now requires explicit mode: `-m 1` for single-end SAM and `-m 2` for paired-end SAM.
+- Batch metadata supports homogeneous single-end FASTQ, paired-end FASTQ, or SAM batches.
+- Default pipeline is `align → auto_counting_withChrom.pl` (mode-aware progressive per-rRNA-sequence voting + adaptive MAPQ).
 - Output defaults to stdout; use `resolveS -o` to write results to a file.
 - Strand calls now require both `abs(Rel_Diff) > 0.6` and binomial two-tailed `p < 0.01`; otherwise the rRNA sequence is treated as `fr-unstranded`.

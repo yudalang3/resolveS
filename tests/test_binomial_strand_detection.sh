@@ -46,7 +46,7 @@ run_case() {
     local stderr="$TMP_DIR/${name}.stderr"
 
     write_sam "$sam" "$@"
-    "$REPO_ROOT/bin/resolveS" -a "$sam" -d > "$stdout" 2> "$stderr"
+    "$REPO_ROOT/bin/resolveS" -a "$sam" -m 2 -d > "$stdout" 2> "$stderr"
 
     local actual_type
     actual_type="$(awk 'NR == 2 { print $2 }' "$stdout")"

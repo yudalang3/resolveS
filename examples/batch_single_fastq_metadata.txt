@@ -1,0 +1,3 @@
+# Batch single-end FASTQ metadata file
+# Format: one FASTQ file path per line
+/mnt/yusim/dalang/projects/wnt_act_data/raw_data/GSE103492/raw/SRR6006665.fastq.gz
