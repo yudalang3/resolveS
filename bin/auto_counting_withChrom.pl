@@ -104,17 +104,26 @@ sub debug_print {
     print STDERR @_ if $DEBUG;
 }
 
-sub validate_sam_mode {
+# Read the SAM file exactly once: validate mode consistency and bin each read's
+# per-chromosome fwd/rev count into a MAPQ tier. Because the adaptive MAPQ
+# thresholds (20, 10, 3, 1) are strictly nested, storing counts per tier lets
+# every threshold be evaluated later in memory without re-reading the file.
+#   tier 0: mapq >= 20    tier 1: 10 <= mapq < 20
+#   tier 2:  3 <= mapq < 10   tier 3: 1 <= mapq < 3   (mapq < 1 excluded)
+# Returns (\%fwd_tier, \%rev_tier) where each value is a 4-element arrayref.
+sub read_sam_into_tiers {
     my ($file, $expected_mode) = @_;
+
+    my %fwd_tier;   # $fwd_tier{$chrom} = [t0, t1, t2, t3]
+    my %rev_tier;
     my $alignment_records = 0;
 
     open my $fh, '<', $file or die "Cannot open $file: $!\n";
+    # Note: relies on well-formed SAM records (>= 11 fields); the limited split
+    # and skipped chomp are safe because fields 1/2/4 are never the final token.
     while (<$fh>) {
-        next if /^@/;
-        chomp;
-        next if $_ eq '';
-
-        my @fields = split /\t/;
+        next if substr($_, 0, 1) eq '@';
+        my @fields = split /\t/, $_, 6;
         next if @fields < 2;
 
         my $flag = $fields[1];
@@ -126,10 +135,54 @@ sub validate_sam_mode {
         if ($expected_mode eq 'pair' && !($flag & 0x1)) {
             die "SAM contains single-end records but pair mode was selected; use -m 1 with resolveS or mode 'single' when calling this script directly\n";
         }
+
+        next if @fields < 5;
+        my $chrom = $fields[2];
+        my $mapq = $fields[4];
+
+        if ($expected_mode eq 'pair') {
+            next unless ($flag & 0x1);
+            next unless ($flag & 0x40);
+        }
+        if (($flag & 0x4) || ($expected_mode eq 'pair' && ($flag & 0x8))) {
+            next;
+        }
+        if ($flag & 0x100) {
+            next;
+        }
+        if ($flag & 0x800) {
+            next;
+        }
+
+        # Tier assignment replaces the per-threshold `mapq < threshold` skip.
+        my $tier;
+        if ($mapq >= 20) {
+            $tier = 0;
+        } elsif ($mapq >= 10) {
+            $tier = 1;
+        } elsif ($mapq >= 3) {
+            $tier = 2;
+        } elsif ($mapq >= 1) {
+            $tier = 3;
+        } else {
+            next;   # mapq < 1 (0) excluded at every level, as in the original
+        }
+
+        if ($expected_mode eq 'pair' && !($flag & 0x2)) {
+            next;
+        }
+
+        if ($flag & 0x10) {
+            $rev_tier{$chrom}[$tier]++;
+        } else {
+            $fwd_tier{$chrom}[$tier]++;
+        }
     }
     close $fh;
 
     die "No alignment records found in SAM file\n" if $alignment_records == 0;
+
+    return (\%fwd_tier, \%rev_tier);
 }
 
 sub binomial_two_tailed_pvalue {
@@ -160,55 +213,36 @@ sub binomial_two_tailed_pvalue {
 
 # === Core detection logic (wrapped in sub for multiple calls) ===
 sub run_detection {
-    my ($mapq_threshold) = @_;
+    my ($mapq_threshold, $fwd_tier, $rev_tier) = @_;
 
     debug_print "\n" . "=" x 60 . "\n";
     debug_print "[ADAPTIVE] Trying MAPQ_THRESHOLD = $mapq_threshold\n";
     debug_print "=" x 60 . "\n";
 
-    # --- Data structures (reset each run) ---
+    # --- Reconstruct per-chrom counts for this threshold from the MAPQ tiers ---
+    # Cumulative sum of tiers 0..$max_tier reproduces the exact counts the
+    # original per-threshold file scan would have produced (mapq >= threshold).
+    my %MAX_TIER = (20 => 0, 10 => 1, 3 => 2, 1 => 3);
+    my $max_tier = $MAX_TIER{$mapq_threshold};
+
     my %chrom_fwd;
     my %chrom_rev;
-
-    open my $fh, '<', $input_file or die "Cannot open $input_file: $!\n";
-
-    while (<$fh>) {
-        next if /^@/;
-        chomp;
-        my @fields = split /\t/;
-        next if @fields < 5;
-        my $flag = $fields[1];
-        my $chrom = $fields[2];
-        my $mapq = $fields[4];
-
-        if ($mode eq 'pair') {
-            next unless ($flag & 0x1);
-            next unless ($flag & 0x40);
+    my %seen;
+    for my $chrom (keys %$fwd_tier, keys %$rev_tier) {
+        next if $seen{$chrom}++;
+        my $f_tiers = $fwd_tier->{$chrom};
+        my $r_tiers = $rev_tier->{$chrom};
+        my $f = 0;
+        my $r = 0;
+        for my $i (0 .. $max_tier) {
+            $f += $f_tiers->[$i] // 0 if $f_tiers;
+            $r += $r_tiers->[$i] // 0 if $r_tiers;
         }
-
-        if (($flag & 0x4) || ($mode eq 'pair' && ($flag & 0x8))) {
-            next;
-        }
-        if ($flag & 0x100) {
-            next;
-        }
-        if ($flag & 0x800) {
-            next;
-        }
-        if ($mapq < $mapq_threshold) {
-            next;
-        }
-        if ($mode eq 'pair' && !($flag & 0x2)) {
-            next;
-        }
-
-        if ($flag & 0x10) {
-            $chrom_rev{$chrom}++;
-        } else {
-            $chrom_fwd{$chrom}++;
-        }
+        # Create a key only when the count is > 0, mirroring the original
+        # `$hash{$chrom}++` semantics so the key set (and sort) is identical.
+        $chrom_fwd{$chrom} = $f if $f > 0;
+        $chrom_rev{$chrom} = $r if $r > 0;
     }
-    close $fh;
 
     # --- Get valid rRNA sequences ---
     my %valid_chroms;
@@ -218,7 +252,7 @@ sub run_detection {
     my @sorted_chroms = sort {
         my $ta = ($chrom_fwd{$a} // 0) + ($chrom_rev{$a} // 0);
         my $tb = ($chrom_fwd{$b} // 0) + ($chrom_rev{$b} // 0);
-        $tb <=> $ta;
+        $tb <=> $ta || $a cmp $b;   # name tiebreaker: reproducible order for equal totals
     } keys %valid_chroms;
 
     my $total_chroms = scalar(@sorted_chroms);
@@ -420,14 +454,14 @@ sub run_detection {
     };
 }
 
-validate_sam_mode($input_file, $mode);
+my ($fwd_tier, $rev_tier) = read_sam_into_tiers($input_file, $mode);
 
 # === Main: Adaptive MAPQ loop ===
 my $result;
 my $final_mapq;
 
 for my $mapq (@MAPQ_LEVELS) {
-    $result = run_detection($mapq);
+    $result = run_detection($mapq, $fwd_tier, $rev_tier);
     $final_mapq = $mapq;
 
     if ($result->{detection_level} ne 'all-insufficient-fallback') {
