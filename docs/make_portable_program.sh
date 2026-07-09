@@ -9,6 +9,8 @@ tar -cvJf "resolveS_portable_v${VERSION}.tar.xz" \
     --exclude='resolveS/.git' \
     --exclude='resolveS/.gitignore' \
     --exclude='resolveS/ref_sensitive' \
+    --exclude='resolveS/tests' \
+    --exclude='resolveS/examples' \
     --exclude='resolveS/bowtie2/*-debug' \
     --exclude='resolveS/bowtie2/example' \
     --exclude='resolveS/bowtie2/doc' \

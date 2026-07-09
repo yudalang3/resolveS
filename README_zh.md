@@ -41,7 +41,7 @@ singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -a aligned.sa
 
 如果您不想了解容器的使用，想直接使用软件，且不想安装任何依赖，可以使用免安装版本。
 
-那么就下载 `portable_program_v0.2.x.tar.gz`，然后解压 `tar -xvf ...`
+那么就下载 `resolveS_portable_v0.2.x.tar.xz`，然后解压 `tar -xvf ...`
 
 得到以下的程序，解压之后的内容如下：
 
@@ -57,7 +57,6 @@ resolveS
 │   ├── auto_counting_withChrom.pl     # 支持 single/pair mode 的计数脚本
 │   └── default_counting_withChrom.pl  # rRNA 序列渐进式检测（Perl）
 ├── bowtie2
-├── examples
 ├── ref_default
 ```
 

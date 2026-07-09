@@ -41,7 +41,7 @@ singularity exec /path/to/resolveS_singularity_v0.2.x.sif resolveS -a aligned.sa
 
 If you don't want to learn about containers, want to use the software directly, and don't want to install any dependencies, you can use the portable version.
 
-Then download `portable_program_v0.2.x.tar.gz`, and extract it with `tar -xvf ...`
+Then download `resolveS_portable_v0.2.x.tar.xz`, and extract it with `tar -xvf ...`
 
 You will get the following program structure after extraction:
 
@@ -57,7 +57,6 @@ resolveS
 │   ├── auto_counting_withChrom.pl     # Mode-aware single/pair counting
 │   └── default_counting_withChrom.pl  # Progressive per-rRNA-sequence detection (Perl)
 ├── bowtie2
-├── examples
 ├── ref_default
 ```
 
