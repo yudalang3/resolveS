@@ -5,7 +5,7 @@
 #
 # === ADAPTIVE MAPQ VERSION ===
 # 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 1
-# 当遇到 insufficient-data 时，降低 MAPQ 重试
+# 当遇到数据不足/不完整的 fallback 时，降低 MAPQ 重试
 # 注意：最低一档为 MAPQ >= 1，确保即使在最宽松档位也排除 MAPQ=0 的纯随机多重比对。
 #
 # Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
@@ -37,13 +37,15 @@
 #   all-insufficient-fallback : All top 8 rRNA seqs have insufficient reads
 #
 # --- Fallback Logic ---
-# When final_type is 'fail-detect', use global Rel_Diff to determine strand:
-#   - total <= 0        -> 'insufficient-data'
+# When final_type is 'fail-detect', use global fallback over per-rRNA
+# major directions and require both Rel_Diff and binomial support:
+#   - total < min_total -> 'insufficient-data'
 #   - |Rel_Diff| <= 0.6 -> 'fr-unstranded'
+#   - binomial p >= 0.01 -> 'fr-unstranded'
 #   - Rel_Diff > 0      -> 'fr-secondstrand'
 #   - Rel_Diff < 0      -> 'fr-firststrand'
 #
-# Note: 'insufficient-data' rRNA sequences (reads <= 40) are EXCLUDED from voting.
+# Note: 'insufficient-data' rRNA sequences (reads < 18) are EXCLUDED from voting.
 #       Only valid types (fr-firststrand, fr-secondstrand, fr-unstranded) count.
 #
 # =============================================================================
@@ -57,7 +59,8 @@
 # =============================================================================
 # ADAPTIVE MAPQ LOGIC:
 # =============================================================================
-# When final_type is 'insufficient-data', try lower MAPQ:
+# Try lower MAPQ for data-scarce fallback levels, and stop on successful
+# progressive detection or terminal Level 4 conflict:
 #   MAPQ-20 -> MAPQ-10 -> MAPQ-3 -> MAPQ-1
 # MAPQ_filter column shows the final MAPQ threshold used (e.g., MAPQ-20, MAPQ-10, MAPQ-3, MAPQ-1)
 #
@@ -457,7 +460,8 @@ my ($fwd_tier, $rev_tier) = read_sam_into_tiers($input_file, $mode);
 my $result;
 my $final_mapq;
 
-for my $mapq (@MAPQ_LEVELS) {
+for (my $tier_index = 0; $tier_index < @MAPQ_LEVELS; $tier_index++) {
+    my $mapq = $MAPQ_LEVELS[$tier_index];
     $result = run_detection($mapq, $fwd_tier, $rev_tier);
     $final_mapq = $mapq;
 
@@ -466,9 +470,19 @@ for my $mapq (@MAPQ_LEVELS) {
     my $should_retry = !($is_success || $is_conflict);
 
     if (!$should_retry) {
-        debug_print "\n[ADAPTIVE] Success at MAPQ=$mapq\n";
+        if ($is_success) {
+            debug_print "\n[ADAPTIVE] Success at MAPQ=$mapq\n";
+        } else {
+            debug_print "\n[ADAPTIVE] Terminal conflict at MAPQ=$mapq (level: $result->{detection_level}); stopping without lowering MAPQ\n";
+        }
         last;
     }
+
+    if ($tier_index == $#MAPQ_LEVELS) {
+        debug_print "[ADAPTIVE] Data scarce/incomplete at lowest MAPQ=$mapq (level: $result->{detection_level}); stopping\n";
+        last;
+    }
+
     debug_print "[ADAPTIVE] Data scarce/incomplete at MAPQ=$mapq (level: $result->{detection_level}), trying lower MAPQ...\n";
 }
 
