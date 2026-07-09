@@ -5,7 +5,7 @@
 #
 # === ADAPTIVE MAPQ VERSION ===
 # 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 1
-# 当遇到 all-insufficient-fallback 时，降低 MAPQ 重试
+# 当遇到 insufficient-data 时，降低 MAPQ 重试
 # 注意：最低一档为 MAPQ >= 1，确保即使在最宽松档位也排除 MAPQ=0 的纯随机多重比对。
 #
 # Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
@@ -57,7 +57,7 @@
 # =============================================================================
 # ADAPTIVE MAPQ LOGIC:
 # =============================================================================
-# When detection_level is 'all-insufficient-fallback', try lower MAPQ:
+# When final_type is 'insufficient-data', try lower MAPQ:
 #   MAPQ-20 -> MAPQ-10 -> MAPQ-3 -> MAPQ-1
 # MAPQ_filter column shows the final MAPQ threshold used (e.g., MAPQ-20, MAPQ-10, MAPQ-3, MAPQ-1)
 #
@@ -387,11 +387,11 @@ for my $mapq (@MAPQ_LEVELS) {
     $result = run_detection($mapq);
     $final_mapq = $mapq;
 
-    if ($result->{detection_level} ne 'all-insufficient-fallback') {
+    if ($result->{final_type} ne 'insufficient-data') {
         debug_print "\n[ADAPTIVE] Success at MAPQ=$mapq\n";
         last;
     }
-    debug_print "[ADAPTIVE] Got all-insufficient-fallback, trying lower MAPQ...\n";
+    debug_print "[ADAPTIVE] Got insufficient-data, trying lower MAPQ...\n";
 }
 
 debug_print "\n[ADAPTIVE] Final MAPQ used: $final_mapq\n";

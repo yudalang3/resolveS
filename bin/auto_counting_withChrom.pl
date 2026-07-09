@@ -5,7 +5,7 @@
 #
 # === ADAPTIVE MAPQ VERSION ===
 # 自动调整 MAPQ 阈值：20 -> 10 -> 3 -> 1
-# 当遇到 all-insufficient-fallback 时，降低 MAPQ 重试
+# 当遇到 insufficient-data 时，降低 MAPQ 重试
 # 注意：最低一档为 MAPQ >= 1，确保即使在最宽松档位也排除 MAPQ=0 的纯随机多重比对。
 #
 # Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
@@ -57,7 +57,7 @@
 # =============================================================================
 # ADAPTIVE MAPQ LOGIC:
 # =============================================================================
-# When detection_level is 'all-insufficient-fallback', try lower MAPQ:
+# When final_type is 'insufficient-data', try lower MAPQ:
 #   MAPQ-20 -> MAPQ-10 -> MAPQ-3 -> MAPQ-1
 # MAPQ_filter column shows the final MAPQ threshold used (e.g., MAPQ-20, MAPQ-10, MAPQ-3, MAPQ-1)
 #
@@ -211,6 +211,17 @@ sub binomial_two_tailed_pvalue {
     return $pvalue > 1 ? 1 : $pvalue;
 }
 
+sub determine_strand_type {
+    my ($f, $r, $min_total) = @_;
+    my $total = $f + $r;
+    return 'insufficient-data' if $total < $min_total;
+    my $mean = $total / 2.0;
+    my $relative_diff = $mean > 0 ? ($f - $r) / $mean : 0;
+    return 'fr-unstranded' if abs($relative_diff) <= RELATIVE_DIFF_CUTOFF;
+    return 'fr-unstranded' if binomial_two_tailed_pvalue($f, $total) >= BINOMIAL_PVALUE_CUTOFF;
+    return $relative_diff > 0 ? 'fr-secondstrand' : 'fr-firststrand';
+}
+
 # === Core detection logic (wrapped in sub for multiple calls) ===
 sub run_detection {
     my ($mapq_threshold, $fwd_tier, $rev_tier) = @_;
@@ -260,13 +271,7 @@ sub run_detection {
     # --- Helper: get strand type for an rRNA sequence ---
     my $get_strand_type = sub {
         my ($f, $r) = @_;
-        my $total = $f + $r;
-        return 'insufficient-data' if $total < 18;
-        my $mean = $total / 2.0;
-        my $relative_diff = $mean > 0 ? ($f - $r) / $mean : 0;
-        return 'fr-unstranded' if abs($relative_diff) <= RELATIVE_DIFF_CUTOFF;
-        return 'fr-unstranded' if binomial_two_tailed_pvalue($f, $total) >= BINOMIAL_PVALUE_CUTOFF;
-        return $relative_diff > 0 ? 'fr-secondstrand' : 'fr-firststrand';
+        return determine_strand_type($f, $r, 18);
     };
 
     # --- Helper: count strand types ---
@@ -429,15 +434,7 @@ sub run_detection {
 
     # --- Fallback ---
     if ($final_type eq 'fail-detect') {
-        if ($total <= 0) {
-            $final_type = 'insufficient-data';
-        } elsif (abs($Rel_Diff) <= 0.6) {
-            $final_type = 'fr-unstranded';
-        } elsif ($Rel_Diff > 0) {
-            $final_type = 'fr-secondstrand';
-        } else {
-            $final_type = 'fr-firststrand';
-        }
+        $final_type = determine_strand_type($fwd, $rev, 1);
         $detection_level = $detection_level . '-fallback';
     }
 
@@ -464,11 +461,15 @@ for my $mapq (@MAPQ_LEVELS) {
     $result = run_detection($mapq, $fwd_tier, $rev_tier);
     $final_mapq = $mapq;
 
-    if ($result->{detection_level} ne 'all-insufficient-fallback') {
+    my $is_success = ($result->{detection_level} !~ /-fallback$/);
+    my $is_conflict = ($result->{detection_level} =~ /^(?:4of8-split|multi-of8)-fallback$/);
+    my $should_retry = !($is_success || $is_conflict);
+
+    if (!$should_retry) {
         debug_print "\n[ADAPTIVE] Success at MAPQ=$mapq\n";
         last;
     }
-    debug_print "[ADAPTIVE] Got all-insufficient-fallback, trying lower MAPQ...\n";
+    debug_print "[ADAPTIVE] Data scarce/incomplete at MAPQ=$mapq (level: $result->{detection_level}), trying lower MAPQ...\n";
 }
 
 debug_print "\n[ADAPTIVE] Final MAPQ used: $final_mapq\n";
