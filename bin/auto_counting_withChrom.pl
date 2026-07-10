@@ -32,8 +32,9 @@
 #   only-5-rRNAs-fallback : 5 rRNA seqs but Level 2 failed, need 7 for Level 3
 #   only-6-rRNAs-fallback : 6 rRNA seqs but Level 2 failed, need 7 for Level 3
 #   only-7-rRNAs-fallback : 7 rRNA seqs but Level 3 failed, need 8 for Level 4
-#   4of8-split-fallback    : Level 4 reached, 4:4 split between two types
-#   multi-of8-fallback     : Level 4 reached, 3-way+ split, no majority
+#   incomplete-of8-fallback: Level 4 reached with 1-7 valid votes
+#   4of8-split-fallback    : Level 4 reached with 8 valid votes split 4:4 between two types
+#   multi-of8-fallback     : Level 4 reached with 8 valid votes but no 7/8 consensus
 #   all-insufficient-fallback : All top 8 rRNA seqs have insufficient reads
 #
 # --- Fallback Logic ---
@@ -356,18 +357,25 @@ sub run_detection {
                         }
                     }
 
+                    my $valid_vote_count = 0;
+                    $valid_vote_count += $_ for values %$counts;
+                    my $type_count = scalar keys %$counts;
+
                     if ($max_count >= 7) {
                         $final_type = $max_type;
                         $detection_level = $max_count . 'of8';
-                    } elsif ($max_count == 4) {
-                        $final_type = 'fail-detect';
-                        $detection_level = '4of8-split';
-                    } elsif ($max_count > 0) {
-                        $final_type = 'fail-detect';
-                        $detection_level = 'multi-of8';
-                    } else {
+                    } elsif ($valid_vote_count == 0) {
                         $final_type = 'fail-detect';
                         $detection_level = 'all-insufficient';
+                    } elsif ($valid_vote_count < 8) {
+                        $final_type = 'fail-detect';
+                        $detection_level = 'incomplete-of8';
+                    } elsif ($max_count == 4 && $type_count == 2) {
+                        $final_type = 'fail-detect';
+                        $detection_level = '4of8-split';
+                    } else {
+                        $final_type = 'fail-detect';
+                        $detection_level = 'multi-of8';
                     }
                 }
             }

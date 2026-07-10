@@ -184,14 +184,15 @@ The `Detection_Level` column in `resolveS` output indicates the confidence of st
 | MAPQ-10 | 3of3 ~ 7of8 | Moderate | Same as above but required lower MAPQ threshold |
 | MAPQ-3 | 3of3 ~ 7of8 | Low | Required very low MAPQ threshold |
 | MAPQ-1 | 3of3 ~ 7of8 | Low | Most permissive threshold (still excludes MAPQ=0 multi-mappers) |
-| Any | *-fallback | Lowest | Progressive detection failed; used global Rel_Diff as fallback |
+| Any | *-fallback | Lowest | Progressive detection failed; global fallback requires both `abs(Rel_Diff) > 0.6` and two-tailed binomial `p < 0.01` for a stranded call |
 
 **Key points:**
 
 - `MAPQ-20` results are most reliable (high-quality alignments only)
-- Lower MAPQ thresholds (10/3/1) are tried progressively only when higher thresholds yield `all-insufficient-fallback`
+- All data-scarce fallback states retry at a lower MAPQ threshold when one remains. Only complete Level 4 conflicts stop the descent.
 - `*-fallback` suffix indicates the progressive per-rRNA-sequence detection failed and the final result is based on global statistics
-- Common fallback types: `only-N-rRNAs-fallback`, `4of8-split-fallback`, `multi-of8-fallback`, `all-insufficient-fallback`
+- Common fallback types: `only-N-rRNAs-fallback`, `incomplete-of8-fallback`, `4of8-split-fallback`, `multi-of8-fallback`, `all-insufficient-fallback`
+- At Level 4, `incomplete-of8-fallback` means only 1-7 of the top eight rRNAs have valid votes. `4of8-split-fallback` is an exact two-type 4:4 split, and `multi-of8-fallback` is any other complete eight-vote non-7/8 consensus, including 6:2, 5:3, or three-type distributions.
 
 ## Technical Details
 
@@ -225,9 +226,9 @@ The `resolveS` script uses an adaptive MAPQ strategy to maximize detection succe
 ```mermaid
 flowchart TD
     A["Start with MAPQ >= 20"] --> B["Run per-rRNA-sequence detection"]
-    B --> C{"Result = all-insufficient-fallback?"}
-    C -->|No| D["Return result"]
-    C -->|Yes| E{"More MAPQ levels?"}
+    B --> C{"Success or complete Level 4 conflict?"}
+    C -->|Yes| D["Return result"]
+    C -->|No: data-scarce fallback| E{"More MAPQ levels?"}
     E -->|Yes| F["Try lower MAPQ: 10 → 3 → 1"]
     F --> B
     E -->|No| G["Return best available result"]
@@ -292,11 +293,12 @@ When using `-d` (debug mode), the following intermediate files are preserved:
 
 ---
 
-## What's New (v0.2.0)
+## What's New (v0.2.1)
 
 - `resolveS` supports single-end FASTQ input (`-1 sample.fastq.gz`) and keeps paired-end FASTQ input (`-1 R1 -2 R2`).
 - Pre-aligned SAM input now requires explicit mode: `-m 1` for single-end SAM and `-m 2` for paired-end SAM.
 - Batch metadata supports homogeneous single-end FASTQ, paired-end FASTQ, or SAM batches.
 - Default pipeline is `align → auto_counting_withChrom.pl` (mode-aware progressive per-rRNA-sequence voting + adaptive MAPQ).
+- Incomplete Level 4 evidence now emits `incomplete-of8-fallback` and retries at lower MAPQ; only complete Level 4 conflicts terminate the adaptive search.
 - Output defaults to stdout; use `resolveS -o` to write results to a file.
 - Strand calls now require both `abs(Rel_Diff) > 0.6` and binomial two-tailed `p < 0.01`; otherwise the rRNA sequence is treated as `fr-unstranded`.

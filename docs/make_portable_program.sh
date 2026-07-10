@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.2.0"
+VERSION="0.2.1"
 
 #tar -cvf "resolveS_portable_v${VERSION}.tar" \
 tar -cvJf "resolveS_portable_v${VERSION}.tar.xz" \

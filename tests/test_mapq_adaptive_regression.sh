@@ -61,7 +61,7 @@ for my $c (1..4) { print "z${c}_${_}\t67\tchr${c}\t100\t0\t4M\t=\t200\t50\tACGT\
 ' > "$MAPQ0"
 got="$(perl "$PL" "$MAPQ0" - mapq0 0 pair)"
 assert_eq "mapq=0 excluded" \
-    "mapq0${TAB}insufficient-data${TAB}MAPQ-20${TAB}only-0-rRNAs-fallback${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
+    "mapq0${TAB}insufficient-data${TAB}MAPQ-1${TAB}only-0-rRNAs-fallback${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
     "$got"
 
 # Control: identical reads at mapq 20 ARE counted (proves the difference is the MAPQ).
@@ -74,7 +74,50 @@ assert_eq "mapq=20 control counted" \
     "mapq20${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}4${TAB}0${TAB}1${TAB}0${TAB}2" \
     "$got"
 
-# --- Case 3: pair-mode flag filtering ---
+# --- Case 3: incomplete Level 4 evidence retries at lower MAPQ ---
+# At MAPQ-20, the top eight contain 4 forward, 2 reverse, and 2 low-coverage
+# rRNAs. Lowering to MAPQ-10 adds reads to three forward rRNAs, yielding 3of3.
+INCOMPLETE="$TMP_DIR/incomplete_level4.sam"
+perl -e '
+for my $c (1..2) { print "r${c}_${_}\t83\tchr${c}\t100\t25\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..(101 - $c); }
+for my $c (3..6) { print "f${c}_${_}\t67\tchr${c}\t100\t25\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..(101 - $c); }
+for my $c (7..8) { print "s${c}_${_}\t67\tchr${c}\t100\t25\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..(16 - $c); }
+for my $c (3..5) { print "l${c}_${_}\t67\tchr${c}\t100\t15\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..100; }
+' > "$INCOMPLETE"
+got="$(perl "$PL" "$INCOMPLETE" - incomplete 0 pair)"
+assert_eq "incomplete Level 4 retries" \
+    "incomplete${TAB}fr-secondstrand${TAB}MAPQ-10${TAB}3of3${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
+    "$got"
+
+# --- Case 4: complete Level 4 conflicts terminate at MAPQ-20 ---
+# The alternating order prevents success at Levels 1-3 before the 4:4 split.
+SPLIT="$TMP_DIR/level4_split.sam"
+perl -e '
+for my $c (1..8) {
+    my $flag = $c % 2 ? 67 : 83;
+    print "x${c}_${_}\t${flag}\tchr${c}\t100\t25\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..(101 - $c);
+}
+' > "$SPLIT"
+got="$(perl "$PL" "$SPLIT" - split 0 pair)"
+assert_eq "complete 4of8 split terminates" \
+    "split${TAB}fr-unstranded${TAB}MAPQ-20${TAB}4of8-split-fallback${TAB}4${TAB}4${TAB}0.5${TAB}0.5${TAB}0" \
+    "$got"
+
+# Reverse votes lead the ranking so the complete 6:2 distribution also reaches
+# Level 4 without satisfying the earlier progressive levels.
+MULTI="$TMP_DIR/level4_multi.sam"
+perl -e '
+for my $c (1..8) {
+    my $flag = $c <= 2 ? 83 : 67;
+    print "y${c}_${_}\t${flag}\tchr${c}\t100\t25\t4M\t=\t200\t50\tACGT\tIIII\n" for 1..(101 - $c);
+}
+' > "$MULTI"
+got="$(perl "$PL" "$MULTI" - multi 0 pair)"
+assert_eq "complete 6of8 conflict terminates" \
+    "multi${TAB}fr-unstranded${TAB}MAPQ-20${TAB}multi-of8-fallback${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
+    "$got"
+
+# --- Case 5: pair-mode flag filtering ---
 # 3 chroms x 20 good forward proper-pair R1 reads (mapq 25) => clean fr-secondstrand 3of3.
 # Each chrom is also loaded with 50 REVERSE reads of every kind that must be dropped;
 # if any leaked in, the chrom would flip to reverse-major and change the result.
@@ -96,7 +139,7 @@ assert_eq "pair flag filtering" \
     "pairfilter${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}3${TAB}0${TAB}1${TAB}0${TAB}2" \
     "$got"
 
-# --- Case 4: mode validation dies ---
+# --- Case 6: mode validation dies ---
 PAIREDFLAG="$TMP_DIR/pairedflag.sam"
 SINGLEFLAG="$TMP_DIR/singleflag.sam"
 perl -e 'print "r${_}\t67\tchr1\t100\t25\t4M\t=\t200\t50\tA\tI\n" for 1..5' > "$PAIREDFLAG"
@@ -106,7 +149,7 @@ assert_dies_with "single-mode on paired flags dies" \
 assert_dies_with "pair-mode on single flags dies" \
     "single-end records but pair mode was selected" "$SINGLEFLAG" pair
 
-# --- Case 5: tie ordering is deterministic across hash seeds ---
+# --- Case 7: tie ordering is deterministic across hash seeds ---
 # 5 chroms with identical totals (20 each) — a pure tie. With the name tiebreaker
 # the -d debug table must be byte-identical regardless of PERL_HASH_SEED.
 TIE="$TMP_DIR/tie.sam"

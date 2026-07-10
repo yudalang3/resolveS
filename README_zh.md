@@ -180,14 +180,15 @@ FASTQ 模式会根据 `-1`/`-2` 自动判断。SAM 模式不会自动判断：`-
 | MAPQ-10 | 3of3 ~ 7of8 | 中等 | 同上，但需要降低 MAPQ 阈值 |
 | MAPQ-3 | 3of3 ~ 7of8 | 低 | 需要非常低的 MAPQ 阈值 |
 | MAPQ-1 | 3of3 ~ 7of8 | 低 | 最宽松的阈值（仍排除 MAPQ=0 的多重比对） |
-| 任意 | *-fallback | 最低 | 渐进式检测失败；使用全局 Rel_Diff 作为后备 |
+| 任意 | *-fallback | 最低 | 渐进式检测失败；全局后备只有同时满足 `abs(Rel_Diff) > 0.6` 和二项分布双尾 `p < 0.01` 时才判为有链 |
 
 **要点：**
 
 - `MAPQ-20` 的结果最可靠（仅使用高质量比对）
-- 只有当较高阈值产生 `all-insufficient-fallback` 时，才会逐步尝试较低的 MAPQ 阈值（10/3/1）
+- 只要还有更低的 MAPQ 档位，所有数据不足型 fallback 都会重试；只有完整的 Level 4 冲突会停止降阈值。
 - `*-fallback` 后缀表示按 rRNA 序列的渐进式检测失败，最终结果基于全局统计
-- 常见的 fallback 类型：`only-N-rRNAs-fallback`、`4of8-split-fallback`、`multi-of8-fallback`、`all-insufficient-fallback`
+- 常见的 fallback 类型：`only-N-rRNAs-fallback`、`incomplete-of8-fallback`、`4of8-split-fallback`、`multi-of8-fallback`、`all-insufficient-fallback`
+- 在 Level 4，`incomplete-of8-fallback` 表示 top 8 中只有 1-7 条 rRNA 有有效投票；`4of8-split-fallback` 表示恰好两类各 4 票；`multi-of8-fallback` 表示完整 8 票中其他任何非 7/8 共识的分布，包括 6:2、5:3 或三类分布。
 
 ## 技术细节
 
@@ -221,9 +222,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["从 MAPQ >= 20 开始"] --> B["运行按 rRNA 序列检测"]
-    B --> C{"结果 = all-insufficient-fallback?"}
-    C -->|否| D["返回结果"]
-    C -->|是| E{"还有更低的 MAPQ 级别?"}
+    B --> C{"成功或完整 Level 4 冲突?"}
+    C -->|是| D["返回结果"]
+    C -->|否：数据不足型 fallback| E{"还有更低的 MAPQ 级别?"}
     E -->|是| F["尝试更低 MAPQ: 10 → 3 → 1"]
     F --> B
     E -->|否| G["返回最佳可用结果"]
@@ -291,11 +292,12 @@ flowchart TD
 
 ---
 
-## 更新摘要（v0.2.0）
+## 更新摘要（v0.2.1）
 
 - `resolveS` 支持单端 FASTQ 输入（`-1 sample.fastq.gz`），并保持双端 FASTQ 输入（`-1 R1 -2 R2`）。
 - 已比对 SAM 输入现在必须显式指定模式：`-m 1` 表示单端 SAM，`-m 2` 表示双端 SAM。
 - 批量元数据支持同质的单端 FASTQ、双端 FASTQ 或 SAM batch。
 - 默认流程为 `align → auto_counting_withChrom.pl`（支持 single/pair mode 的按 rRNA 序列渐进式投票 + 自适应 MAPQ）。
+- 不完整的 Level 4 证据现在输出 `incomplete-of8-fallback` 并在更低 MAPQ 重试；只有完整的 Level 4 冲突会终止自适应搜索。
 - 默认输出到 stdout；使用 `resolveS -o` 可直接写入文件。
 - 链方向判定需要同时满足 `abs(Rel_Diff) > 0.6` 和二项分布双尾检验 `p < 0.01`；否则该 rRNA 序列判为 `fr-unstranded`。

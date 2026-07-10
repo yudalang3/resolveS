@@ -1,5 +1,7 @@
 # `bin/default_counting_withChrom.pl` 性能问题：现象、分析与建议
 
+> **Historical note (2026-07-10):** This analysis predates the current `bin/auto_counting_withChrom.pl` single-pass MAPQ-tier implementation. References below to `default_counting_withChrom.pl`, repeated full-file scans, and MAPQ=0 no longer describe the active resolveS workflow.
+
 ## 1) 问题（现象）
 
 你观察到 `bin/default_counting_withChrom.pl` 执行偏慢，并且单个进程的 CPU 利用率不高（约 20%–30%）。从 `ps` 输出看，同时跑了多个 `perl default_counting_withChrom.pl ...` 进程，但每个进程都没有接近 “吃满一个 CPU 核心（~100%）”。
@@ -96,4 +98,3 @@
 ---
 
 如果你希望我继续推进：我可以在仓库里对 `bin/default_counting_withChrom.pl` 做“单次扫描同时统计多档 MAPQ”的重构，并补充一个 `--debug` 输出统计（例如本次用了哪个 MAPQ、是否触发了 fallback、是否可能发生多次扫描），方便你在批量运行中直接定位性能瓶颈。
-
