@@ -49,7 +49,7 @@ fi
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.2.1
+This is resolveS version 0.2.2
 Usage: $0 [OPTIONS]
 
 Options:
@@ -267,6 +267,20 @@ cleanup_sam() {
     fi
 }
 
+check_sam_has_alignments() {
+    local sam_path="$1"
+
+    [[ -s "$sam_path" ]] || return 1
+
+    awk -F '\t' '
+        substr($0, 1, 1) != "@" && NF >= 2 {
+            found = 1
+            exit
+        }
+        END { exit(found ? 0 : 1) }
+    ' "$sam_path"
+}
+
 process_fastq_single() {
     local read="$1"
     local output="$2"
@@ -284,6 +298,13 @@ process_fastq_single() {
     if ! "${SCRIPT_DIR}/default_align_single_by_bowtie2.sh" "$read" "$REFERENCE_DB" "$threads" "$max_alig_reads" "$sam_path"; then
         log_error "Single-end alignment failed: $read"
         cleanup_sam "$sam_path"
+        return 1
+    fi
+
+    if ! check_sam_has_alignments "$sam_path"; then
+        log_error "No alignment records were produced from the FASTQ input."
+        log_error "Possible causes include low rRNA content, an rRNA reference that does not match the sample, or a -u sampling range that is too small."
+        log_error "The generated SAM file has been kept for diagnosis: $sam_path"
         return 1
     fi
 
@@ -331,6 +352,13 @@ process_fastq_pair() {
         return 1
     fi
 
+    if ! check_sam_has_alignments "$sam_path"; then
+        log_error "No alignment records were produced from the FASTQ input."
+        log_error "Possible causes include low rRNA content, an rRNA reference that does not match the sample, or a -u sampling range that is too small."
+        log_error "The generated SAM file has been kept for diagnosis: $sam_path"
+        return 1
+    fi
+
     local fullpath
     fullpath=$(realpath "$r1")
 
@@ -365,6 +393,12 @@ process_prealigned_sam() {
     fi
 
     log_info "Processing pre-aligned SAM file: $sam_file (mode: $sam_mode)"
+
+    if ! check_sam_has_alignments "$sam_file"; then
+        log_error "The provided SAM file contains no alignment records: $sam_file"
+        log_error "Check whether the file is empty, contains only headers, or was not generated correctly."
+        return 1
+    fi
 
     local fullpath
     fullpath=$(realpath "$sam_file")

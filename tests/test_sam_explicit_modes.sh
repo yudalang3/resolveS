@@ -88,6 +88,35 @@ assert_fails_with() {
     fi
 }
 
+assert_empty_sam_fails_cleanly() {
+    local sam_file="$1"
+    local case_name="$2"
+    local stdout="$TMP_DIR/${case_name}.stdout"
+    local stderr="$TMP_DIR/${case_name}.stderr"
+
+    if "$REPO_ROOT/bin/resolveS" -a "$sam_file" -m 1 > "$stdout" 2> "$stderr"; then
+        echo "FAIL: empty SAM unexpectedly succeeded: $sam_file" >&2
+        cat "$stdout" >&2
+        cat "$stderr" >&2
+        return 1
+    fi
+
+    grep -Fq "The provided SAM file contains no alignment records: $sam_file" "$stderr"
+    grep -Fq "Check whether the file is empty, contains only headers, or was not generated correctly." "$stderr"
+
+    if grep -Fq "No alignment records found in SAM file" "$stderr"; then
+        echo "FAIL: Perl empty-SAM error leaked to stderr: $sam_file" >&2
+        cat "$stderr" >&2
+        return 1
+    fi
+
+    if [[ "$(awk 'END { print NR }' "$stdout")" -ne 1 ]]; then
+        echo "FAIL: empty SAM output should contain only the header: $sam_file" >&2
+        cat "$stdout" >&2
+        return 1
+    fi
+}
+
 PAIRED_SAM="$TMP_DIR/paired.sam"
 SINGLE_SAM="$TMP_DIR/single.sam"
 write_paired_sam "$PAIRED_SAM"
@@ -107,6 +136,47 @@ assert_fails_with "use -m 1" "$REPO_ROOT/bin/resolveS" -a "$SINGLE_SAM" -m 2
 assert_success_output "$TMP_DIR/warn.stdout"
 grep -Fq "[WARN] -p is ignored for SAM input because no alignment is run" "$TMP_DIR/warn.stderr"
 grep -Fq "[WARN] -u is ignored for SAM input because no alignment is run" "$TMP_DIR/warn.stderr"
+
+EMPTY_SAM="$TMP_DIR/empty.sam"
+HEADER_ONLY_SAM="$TMP_DIR/header_only.sam"
+HEADER_BLANK_SAM="$TMP_DIR/header_blank.sam"
+MINIMAL_SAM="$TMP_DIR/minimal.sam"
+
+: > "$EMPTY_SAM"
+printf '@HD\tVN:1.6\tSO:unsorted\n@SQ\tSN:chr1\tLN:1000\n' > "$HEADER_ONLY_SAM"
+printf '@HD\tVN:1.6\tSO:unsorted\n\n   \n' > "$HEADER_BLANK_SAM"
+printf 'read1\t0\n' > "$MINIMAL_SAM"
+
+assert_empty_sam_fails_cleanly "$EMPTY_SAM" "empty"
+assert_empty_sam_fails_cleanly "$HEADER_ONLY_SAM" "header_only"
+assert_empty_sam_fails_cleanly "$HEADER_BLANK_SAM" "header_blank"
+
+"$REPO_ROOT/bin/resolveS" -a "$MINIMAL_SAM" -m 1 > "$TMP_DIR/minimal.stdout" 2> "$TMP_DIR/minimal.stderr"
+assert_success_output "$TMP_DIR/minimal.stdout"
+
+BATCH_METADATA="$TMP_DIR/batch_sam_metadata.txt"
+printf '%s\n%s\n' "$EMPTY_SAM" "$SINGLE_SAM" > "$BATCH_METADATA"
+
+if "$REPO_ROOT/bin/resolveS" -b "$BATCH_METADATA" -m 1 > "$TMP_DIR/batch.stdout" 2> "$TMP_DIR/batch.stderr"; then
+    echo "FAIL: SAM batch with an empty sample unexpectedly succeeded" >&2
+    cat "$TMP_DIR/batch.stdout" >&2
+    cat "$TMP_DIR/batch.stderr" >&2
+    exit 1
+fi
+
+grep -Fq "Failed to process sample 1: $EMPTY_SAM" "$TMP_DIR/batch.stderr"
+grep -Fq "Total: 2 | Success: 1 | Failed: 1" "$TMP_DIR/batch.stderr"
+if grep -Fq "No alignment records found in SAM file" "$TMP_DIR/batch.stderr"; then
+    echo "FAIL: Perl empty-SAM error leaked during batch processing" >&2
+    cat "$TMP_DIR/batch.stderr" >&2
+    exit 1
+fi
+if [[ "$(awk 'END { print NR }' "$TMP_DIR/batch.stdout")" -ne 2 ]]; then
+    echo "FAIL: SAM batch output should contain one header and one successful result" >&2
+    cat "$TMP_DIR/batch.stdout" >&2
+    exit 1
+fi
+assert_success_output "$TMP_DIR/batch.stdout"
 
 echo "SAM explicit mode tests passed"
 echo "Temporary test files retained at: $TMP_DIR" >&2
