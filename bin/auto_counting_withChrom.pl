@@ -8,7 +8,7 @@
 # 当遇到数据不足/不完整的 fallback 时，降低 MAPQ 重试
 # 注意：最低一档为 MAPQ >= 1，确保即使在最宽松档位也排除 MAPQ=0 的纯随机多重比对。
 #
-# Output format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
+# Output format: File Strand_Type Compatible_Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
 #
 # =============================================================================
 # DETECTION_LEVEL - All Possible Values:
@@ -106,6 +106,18 @@ die "Error: Input file '$input_file' not found!\n" unless -f $input_file;
 # --- Debug helper ---
 sub debug_print {
     print STDERR @_ if $DEBUG;
+}
+
+sub output_strand_types {
+    my ($detected_type, $input_mode) = @_;
+    return ($detected_type, $detected_type) if $input_mode eq 'pair';
+
+    my %single_end_labels = (
+        'fr-secondstrand' => 'forward-stranded',
+        'fr-firststrand'  => 'reverse-stranded',
+        'fr-unstranded'   => 'unstranded',
+    );
+    return ($single_end_labels{$detected_type} // $detected_type, $detected_type);
 }
 
 # Read the SAM file exactly once: validate mode consistency and bin each read's
@@ -498,9 +510,10 @@ debug_print "\n[ADAPTIVE] Final MAPQ used: $final_mapq\n";
 debug_print "[ADAPTIVE] Final result: $result->{final_type} ($result->{detection_level})\n";
 
 # --- Output ---
-# Format: File Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
+# Format: File Strand_Type Compatible_Strand_Type MAPQ_Filter Detection_Level Overall_fallback_Fwd Overall_fallback_Rev Overall_fallback_Fwd_Ratio Overall_fallback_Rev_Ratio Overall_fallback_Rel_Diff
 my $mapq_filter = "MAPQ-$final_mapq";
-my $output_line = "$index_str\t$result->{final_type}\t$mapq_filter\t$result->{detection_level}\t$result->{fwd}\t$result->{rev}\t$result->{fwd_Ratio}\t$result->{rev_Ratio}\t$result->{Rel_Diff}\n";
+my ($strand_type, $compatible_strand_type) = output_strand_types($result->{final_type}, $mode);
+my $output_line = "$index_str\t$strand_type\t$compatible_strand_type\t$mapq_filter\t$result->{detection_level}\t$result->{fwd}\t$result->{rev}\t$result->{fwd_Ratio}\t$result->{rev_Ratio}\t$result->{Rel_Diff}\n";
 
 if ($output_file eq "-") {
     # Output to stdout

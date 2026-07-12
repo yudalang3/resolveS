@@ -28,7 +28,7 @@ THREADS_SET=false
 MAX_ALIG_READS_SET=false
 CURRENT_BATCH_INDEX=0
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-OUTPUT_HEADER="File\tStrand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
+OUTPUT_HEADER="File\tStrand_Type\tCompatible_Strand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff"
 
 # Color output only when stderr is a terminal.
 if [[ -t 2 ]]; then
@@ -49,7 +49,7 @@ fi
 
 print_usage() {
     cat << 'EOF'
-This is resolveS version 0.2.2
+This is resolveS version 0.3.0
 Usage: $0 [OPTIONS]
 
 Options:

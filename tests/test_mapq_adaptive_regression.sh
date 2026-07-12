@@ -50,7 +50,7 @@ for my $c (1..8) {
 ' > "$ADAPT"
 got="$(perl "$PL" "$ADAPT" - adaptive 0 pair)"
 assert_eq "adaptive MAPQ descent" \
-    "adaptive${TAB}fr-secondstrand${TAB}MAPQ-10${TAB}3of3${TAB}8${TAB}0${TAB}1${TAB}0${TAB}2" \
+    "adaptive${TAB}fr-secondstrand${TAB}fr-secondstrand${TAB}MAPQ-10${TAB}3of3${TAB}8${TAB}0${TAB}1${TAB}0${TAB}2" \
     "$got"
 
 # --- Case 2: MAPQ=0 always excluded ---
@@ -61,7 +61,7 @@ for my $c (1..4) { print "z${c}_${_}\t67\tchr${c}\t100\t0\t4M\t=\t200\t50\tACGT\
 ' > "$MAPQ0"
 got="$(perl "$PL" "$MAPQ0" - mapq0 0 pair)"
 assert_eq "mapq=0 excluded" \
-    "mapq0${TAB}insufficient-data${TAB}MAPQ-1${TAB}only-0-rRNAs-fallback${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
+    "mapq0${TAB}insufficient-data${TAB}insufficient-data${TAB}MAPQ-1${TAB}only-0-rRNAs-fallback${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
     "$got"
 
 # Control: identical reads at mapq 20 ARE counted (proves the difference is the MAPQ).
@@ -71,7 +71,7 @@ for my $c (1..4) { print "z${c}_${_}\t67\tchr${c}\t100\t20\t4M\t=\t200\t50\tACGT
 ' > "$MAPQ20"
 got="$(perl "$PL" "$MAPQ20" - mapq20 0 pair)"
 assert_eq "mapq=20 control counted" \
-    "mapq20${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}4${TAB}0${TAB}1${TAB}0${TAB}2" \
+    "mapq20${TAB}fr-secondstrand${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}4${TAB}0${TAB}1${TAB}0${TAB}2" \
     "$got"
 
 # --- Case 3: incomplete Level 4 evidence retries at lower MAPQ ---
@@ -86,7 +86,7 @@ for my $c (3..5) { print "l${c}_${_}\t67\tchr${c}\t100\t15\t4M\t=\t200\t50\tACGT
 ' > "$INCOMPLETE"
 got="$(perl "$PL" "$INCOMPLETE" - incomplete 0 pair)"
 assert_eq "incomplete Level 4 retries" \
-    "incomplete${TAB}fr-secondstrand${TAB}MAPQ-10${TAB}3of3${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
+    "incomplete${TAB}fr-secondstrand${TAB}fr-secondstrand${TAB}MAPQ-10${TAB}3of3${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
     "$got"
 
 # --- Case 4: complete Level 4 conflicts terminate at MAPQ-20 ---
@@ -100,7 +100,7 @@ for my $c (1..8) {
 ' > "$SPLIT"
 got="$(perl "$PL" "$SPLIT" - split 0 pair)"
 assert_eq "complete 4of8 split terminates" \
-    "split${TAB}fr-unstranded${TAB}MAPQ-20${TAB}4of8-split-fallback${TAB}4${TAB}4${TAB}0.5${TAB}0.5${TAB}0" \
+    "split${TAB}fr-unstranded${TAB}fr-unstranded${TAB}MAPQ-20${TAB}4of8-split-fallback${TAB}4${TAB}4${TAB}0.5${TAB}0.5${TAB}0" \
     "$got"
 
 # Reverse votes lead the ranking so the complete 6:2 distribution also reaches
@@ -114,7 +114,7 @@ for my $c (1..8) {
 ' > "$MULTI"
 got="$(perl "$PL" "$MULTI" - multi 0 pair)"
 assert_eq "complete 6of8 conflict terminates" \
-    "multi${TAB}fr-unstranded${TAB}MAPQ-20${TAB}multi-of8-fallback${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
+    "multi${TAB}fr-unstranded${TAB}fr-unstranded${TAB}MAPQ-20${TAB}multi-of8-fallback${TAB}6${TAB}2${TAB}0.75${TAB}0.25${TAB}1" \
     "$got"
 
 # --- Case 5: pair-mode flag filtering ---
@@ -136,10 +136,51 @@ for my $c (1..3) {
 ' > "$FILTER"
 got="$(perl "$PL" "$FILTER" - pairfilter 0 pair)"
 assert_eq "pair flag filtering" \
-    "pairfilter${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}3${TAB}0${TAB}1${TAB}0${TAB}2" \
+    "pairfilter${TAB}fr-secondstrand${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}3${TAB}0${TAB}1${TAB}0${TAB}2" \
     "$got"
 
-# --- Case 6: mode validation dies ---
+# --- Case 6: single-end output labels and compatibility mapping ---
+SINGLE_FWD="$TMP_DIR/single_forward.sam"
+SINGLE_REV="$TMP_DIR/single_reverse.sam"
+SINGLE_UNSTRANDED="$TMP_DIR/single_unstranded.sam"
+SINGLE_INSUFFICIENT="$TMP_DIR/single_insufficient.sam"
+perl -e '
+for my $c (1..3) { print "f${c}_${_}\t0\tchr${c}\t100\t25\t4M\t*\t0\t0\tACGT\tIIII\n" for 1..20; }
+' > "$SINGLE_FWD"
+perl -e '
+for my $c (1..3) { print "r${c}_${_}\t16\tchr${c}\t100\t25\t4M\t*\t0\t0\tACGT\tIIII\n" for 1..20; }
+' > "$SINGLE_REV"
+perl -e '
+for my $c (1..3) {
+    print "f${c}_${_}\t0\tchr${c}\t100\t25\t4M\t*\t0\t0\tACGT\tIIII\n" for 1..10;
+    print "r${c}_${_}\t16\tchr${c}\t100\t25\t4M\t*\t0\t0\tACGT\tIIII\n" for 1..10;
+}
+' > "$SINGLE_UNSTRANDED"
+perl -e '
+for my $c (1..4) { print "z${c}_${_}\t0\tchr${c}\t100\t0\t4M\t*\t0\t0\tACGT\tIIII\n" for 1..20; }
+' > "$SINGLE_INSUFFICIENT"
+
+got="$(perl "$PL" "$SINGLE_FWD" - single-forward 0 single)"
+assert_eq "single forward label" \
+    "single-forward${TAB}forward-stranded${TAB}fr-secondstrand${TAB}MAPQ-20${TAB}3of3${TAB}3${TAB}0${TAB}1${TAB}0${TAB}2" \
+    "$got"
+
+got="$(perl "$PL" "$SINGLE_REV" - single-reverse 0 single)"
+assert_eq "single reverse label" \
+    "single-reverse${TAB}reverse-stranded${TAB}fr-firststrand${TAB}MAPQ-20${TAB}3of3${TAB}0${TAB}3${TAB}0${TAB}1${TAB}-2" \
+    "$got"
+
+got="$(perl "$PL" "$SINGLE_UNSTRANDED" - single-unstranded 0 single)"
+assert_eq "single unstranded label" \
+    "single-unstranded${TAB}unstranded${TAB}fr-unstranded${TAB}MAPQ-20${TAB}3of3${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
+    "$got"
+
+got="$(perl "$PL" "$SINGLE_INSUFFICIENT" - single-insufficient 0 single)"
+assert_eq "single insufficient label" \
+    "single-insufficient${TAB}insufficient-data${TAB}insufficient-data${TAB}MAPQ-1${TAB}only-0-rRNAs-fallback${TAB}0${TAB}0${TAB}0${TAB}0${TAB}0" \
+    "$got"
+
+# --- Case 7: mode validation dies ---
 PAIREDFLAG="$TMP_DIR/pairedflag.sam"
 SINGLEFLAG="$TMP_DIR/singleflag.sam"
 perl -e 'print "r${_}\t67\tchr1\t100\t25\t4M\t=\t200\t50\tA\tI\n" for 1..5' > "$PAIREDFLAG"
@@ -149,7 +190,7 @@ assert_dies_with "single-mode on paired flags dies" \
 assert_dies_with "pair-mode on single flags dies" \
     "single-end records but pair mode was selected" "$SINGLEFLAG" pair
 
-# --- Case 7: tie ordering is deterministic across hash seeds ---
+# --- Case 8: tie ordering is deterministic across hash seeds ---
 # 5 chroms with identical totals (20 each) — a pure tie. With the name tiebreaker
 # the -d debug table must be byte-identical regardless of PERL_HASH_SEED.
 TIE="$TMP_DIR/tie.sam"

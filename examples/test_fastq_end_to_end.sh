@@ -14,6 +14,7 @@ validate_result() {
     local sam_file="${2:-}"
     local line_count
     local strand_type
+    local compatible_strand_type
     local mapq_filter
 
     if [[ ! -s "$result_file" ]]; then
@@ -29,7 +30,8 @@ validate_result() {
     fi
 
     strand_type="$(awk 'NR == 2 { print $2 }' "$result_file")"
-    mapq_filter="$(awk 'NR == 2 { print $3 }' "$result_file")"
+    compatible_strand_type="$(awk 'NR == 2 { print $3 }' "$result_file")"
+    mapq_filter="$(awk 'NR == 2 { print $4 }' "$result_file")"
 
     if [[ -z "$strand_type" ]]; then
         echo "FAIL: empty Strand_Type in $result_file" >&2
@@ -37,8 +39,20 @@ validate_result() {
         return 1
     fi
 
+    if [[ -z "$compatible_strand_type" ]]; then
+        echo "FAIL: empty Compatible_Strand_Type in $result_file" >&2
+        cat "$result_file" >&2
+        return 1
+    fi
+
     if [[ ! "$mapq_filter" =~ ^MAPQ-(20|10|3|1)$ ]]; then
         echo "FAIL: unexpected MAPQ_Filter '$mapq_filter' in $result_file" >&2
+        cat "$result_file" >&2
+        return 1
+    fi
+
+    if ! awk -F '\t' 'NF != 10 { exit 1 }' "$result_file"; then
+        echo "FAIL: result must contain exactly 10 columns: $result_file" >&2
         cat "$result_file" >&2
         return 1
     fi

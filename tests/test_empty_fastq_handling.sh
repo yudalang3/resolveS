@@ -3,6 +3,23 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/resolveS_empty_fastq.XXXXXX")"
+EXPECTED_HEADER=$'File\tStrand_Type\tCompatible_Strand_Type\tMAPQ_Filter\tDetection_Level\tOverall_fallback_Fwd\tOverall_fallback_Rev\tOverall_fallback_Fwd_Ratio\tOverall_fallback_Rev_Ratio\tOverall_fallback_Rel_Diff'
+
+assert_output_schema() {
+    local output="$1"
+
+    if [[ "$(head -n 1 "$output")" != "$EXPECTED_HEADER" ]]; then
+        echo "FAIL: unexpected output header: $output" >&2
+        cat "$output" >&2
+        return 1
+    fi
+
+    if ! awk -F '\t' 'NF != 10 { exit 1 }' "$output"; then
+        echo "FAIL: output must contain exactly 10 columns: $output" >&2
+        cat "$output" >&2
+        return 1
+    fi
+}
 
 write_unalignable_fastq() {
     local path="$1"
@@ -70,6 +87,8 @@ assert_fastq_failure() {
         cat "$run_dir/stdout.tsv" >&2
         return 1
     fi
+
+    assert_output_schema "$run_dir/stdout.tsv"
 }
 
 assert_normal_fastq_succeeds() {
@@ -92,6 +111,8 @@ assert_normal_fastq_succeeds() {
         echo "FAIL: debug mode did not retain a non-empty SAM" >&2
         return 1
     fi
+
+    assert_output_schema "$run_dir/stdout.tsv"
 }
 
 SINGLE_FASTQ="$TMP_DIR/single.fastq"

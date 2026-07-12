@@ -79,7 +79,7 @@ Save the results to a text file:
 
 ```
 
-Finally, the `Strand_Type` column is the inferred result.
+Finally, the `Strand_Type` column is the inferred result. Single-end results use native direction labels; `Compatible_Strand_Type` provides the corresponding `fr-*` value for downstream compatibility.
 
 The `-b` parameter allows batch processing with FASTQ or SAM metadata.
 
@@ -158,16 +158,32 @@ For the end-user, the most convenient usage is:
 
 FASTQ mode is inferred automatically from `-1`/`-2`. SAM mode is never inferred: `-m 1` means single-end SAM and `-m 2` means paired-end SAM. `-p` and `-u` are ignored for SAM input and emit warnings when supplied.
 
-`resolveS` outputs: `File`, `Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
+`resolveS` outputs: `File`, `Strand_Type`, `Compatible_Strand_Type`, `MAPQ_Filter`, `Detection_Level`, `Overall_fallback_Fwd`, `Overall_fallback_Rev`, `Overall_fallback_Fwd_Ratio`, `Overall_fallback_Rev_Ratio`, `Overall_fallback_Rel_Diff`
 
 Notes for `resolveS` output columns:
 
 - `File`: input identifier (absolute path of R1 or SAM)
+- `Strand_Type`: native result label. Single-end output uses `forward-stranded`, `reverse-stranded`, or `unstranded`; paired-end output keeps `fr-firststrand`, `fr-secondstrand`, or `fr-unstranded`.
+- `Compatible_Strand_Type`: TopHat-style `fr-*` compatibility label. For paired-end data this is identical to `Strand_Type`.
 - `MAPQ_Filter`: final MAPQ cutoff used (`MAPQ-20/10/3/1`)
 - `Detection_Level`: progressive detection stage (e.g. `3of3`, `4of5`, `6of7`, `7of8`) or `*-fallback`
 - `Overall_fallback_Fwd`/`Overall_fallback_Rev`: number of rRNA sequences where forward/reverse read counts dominate (ties excluded)
 - `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`: proportion of fwd/rev rRNA sequences (e.g. 0.538 means 53.8%)
 - `Overall_fallback_Rel_Diff`: relative difference = (Fwd - Rev) / mean(Fwd, Rev); positive = forward-biased
+
+For single-end data, `forward` and `reverse` describe the read alignment direction relative to the rRNA reference sequence. They do not assume that the reference database has been annotated as biological sense or antisense.
+
+### Single-end strand label mapping
+
+RSeQC represents single-end libraries as `++,--` when reads align to the same strand as the annotated source and `+-,-+` when they align to the opposite strand. Its native `infer_experiment.py` output reports these fractions rather than an `FR/RF` label. The following table maps the resolveS result to common downstream tools:
+
+| RSeQC pattern | `Strand_Type` | `Compatible_Strand_Type` | Salmon | Trinity | featureCounts | HTSeq |
+|---------------|---------------|--------------------------|--------|---------|---------------|-------|
+| `++,--` | `forward-stranded` | `fr-secondstrand` | `SF` | `F` | `-s 1` | `--stranded=yes` |
+| `+-,-+` | `reverse-stranded` | `fr-firststrand` | `SR` | `R` | `-s 2` | `--stranded=reverse` |
+| no dominant direction | `unstranded` | `fr-unstranded` | `U` | unset | `-s 0` | `--stranded=no` |
+
+References: [RSeQC `infer_experiment.py`](https://github.com/MonashBioinformaticsPlatform/RSeQC/blob/master/rseqc/modules/infer_experiment.py), [Salmon library types](https://salmon.readthedocs.io/en/latest/library_type.html), [Trinity strand-specific input](https://github.com/trinityrnaseq/trinityrnaseq/blob/master/Trinity), [featureCounts](https://subread.sourceforge.net/featureCounts.html), and [HTSeq count](https://htseq.readthedocs.io/en/latest/htseqcount.html).
 
 ## Interpreting Results
 
@@ -252,12 +268,12 @@ flowchart TD
     A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)<br/>Binomial two-tailed p: X~Binomial(total, 0.5), statistic=fwd"] --> B{"low coverage?"}
     B -->|yes| C["insufficient-data"]
     B -->|no| D{"abs(Rel_Diff) <= 0.6?"}
-    D -->|yes| E["fr-unstranded"]
+    D -->|yes| E["internal: fr-unstranded"]
     D -->|no| F{"p >= 0.01?"}
     F -->|yes| E
     F -->|no| G{"Rel_Diff > 0?"}
-    G -->|yes| H["fr-secondstrand"]
-    G -->|no| I["fr-firststrand"]
+    G -->|yes| H["internal: fr-secondstrand"]
+    G -->|no| I["internal: fr-firststrand"]
 ```
 
 # Full Program Documentation

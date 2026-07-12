@@ -1,2 +1,2 @@
-File	Strand_Type	MAPQ_Filter	Detection_Level	Overall_fallback_Fwd	Overall_fallback_Rev	Overall_fallback_Fwd_Ratio	Overall_fallback_Rev_Ratio	Overall_fallback_Rel_Diff
-/home/dell/projects/estimate_strand4NGS/formal_program/resolveS/examples/test_outputs/single_fastq/resolveS.sam	fr-secondstrand	MAPQ-20	multi-of8-fallback	42	10	0.807692307692308	0.192307692307692	1.23076923076923
+File	Strand_Type	Compatible_Strand_Type	MAPQ_Filter	Detection_Level	Overall_fallback_Fwd	Overall_fallback_Rev	Overall_fallback_Fwd_Ratio	Overall_fallback_Rev_Ratio	Overall_fallback_Rel_Diff
+/home/dell/projects/estimate_strand4NGS/formal_program/resolveS/examples/test_outputs/single_fastq/resolveS.sam	forward-stranded	fr-secondstrand	MAPQ-20	multi-of8-fallback	42	10	0.807692307692308	0.192307692307692	1.23076923076923

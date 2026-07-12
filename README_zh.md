@@ -79,7 +79,7 @@ resolveS
 
 ```
 
-最终，`Strand_Type` 列就是推断的结果。
+最终，`Strand_Type` 列就是推断结果。单端结果使用原生方向标签，`Compatible_Strand_Type` 提供对应的 `fr-*` 兼容值，便于下游工具使用。
 
 -b 参数可以通过 FASTQ 或 SAM 元数据批量运行。
 
@@ -154,16 +154,32 @@ mamba install bioconda::bowtie2 perl
 
 FASTQ 模式会根据 `-1`/`-2` 自动判断。SAM 模式不会自动判断：`-m 1` 表示单端 SAM，`-m 2` 表示双端 SAM。`-p` 和 `-u` 对 SAM 输入无效，如果传入会输出 warning。
 
-`resolveS` 输出：`File`、`Strand_Type`、`MAPQ_Filter`、`Detection_Level`、`Overall_fallback_Fwd`、`Overall_fallback_Rev`、`Overall_fallback_Fwd_Ratio`、`Overall_fallback_Rev_Ratio`、`Overall_fallback_Rel_Diff`
+`resolveS` 输出：`File`、`Strand_Type`、`Compatible_Strand_Type`、`MAPQ_Filter`、`Detection_Level`、`Overall_fallback_Fwd`、`Overall_fallback_Rev`、`Overall_fallback_Fwd_Ratio`、`Overall_fallback_Rev_Ratio`、`Overall_fallback_Rel_Diff`
 
 `resolveS` 输出列说明：
 
 - `File`：输入标识（R1 或 SAM 的绝对路径）
+- `Strand_Type`：原生结果标签。单端输出为 `forward-stranded`、`reverse-stranded` 或 `unstranded`；双端继续输出 `fr-firststrand`、`fr-secondstrand` 或 `fr-unstranded`。
+- `Compatible_Strand_Type`：TopHat 风格的 `fr-*` 兼容标签。双端数据中该列与 `Strand_Type` 相同。
 - `MAPQ_Filter`：最终采用的 MAPQ 阈值（`MAPQ-20/10/3/1`）
 - `Detection_Level`：渐进式检测阶段（如 `3of3`、`4of5`、`6of7`、`7of8`）或 `*-fallback`
 - `Overall_fallback_Fwd`/`Overall_fallback_Rev`：按 rRNA 序列统计的"正向占优/反向占优"的 rRNA 序列数量（剔除 tie）
 - `Overall_fallback_Fwd_Ratio`/`Overall_fallback_Rev_Ratio`：正向/反向 rRNA 序列的比例（如 0.538 表示 53.8%）
 - `Overall_fallback_Rel_Diff`：相对差异 = (Fwd - Rev) / mean(Fwd, Rev)；正值表示正链占优
+
+对于单端数据，`forward` 和 `reverse` 表示 read 相对 rRNA 参考序列的比对方向，不假定参考库已经被标注为生物学意义上的 sense 或 antisense。
+
+### 单端链方向标签映射
+
+RSeQC 使用 `++,--` 表示单端 read 与注释来源同链，使用 `+-,-+` 表示 read 与注释来源反链。原生 `infer_experiment.py` 输出的是这两类比例，而不是 `FR/RF` 标签。resolveS 与常用下游工具的对应关系如下：
+
+| RSeQC 模式 | `Strand_Type` | `Compatible_Strand_Type` | Salmon | Trinity | featureCounts | HTSeq |
+|------------|---------------|--------------------------|--------|---------|---------------|-------|
+| `++,--` | `forward-stranded` | `fr-secondstrand` | `SF` | `F` | `-s 1` | `--stranded=yes` |
+| `+-,-+` | `reverse-stranded` | `fr-firststrand` | `SR` | `R` | `-s 2` | `--stranded=reverse` |
+| 无明显方向 | `unstranded` | `fr-unstranded` | `U` | 不设置 | `-s 0` | `--stranded=no` |
+
+参考资料：[RSeQC `infer_experiment.py`](https://github.com/MonashBioinformaticsPlatform/RSeQC/blob/master/rseqc/modules/infer_experiment.py)、[Salmon library types](https://salmon.readthedocs.io/en/latest/library_type.html)、[Trinity strand-specific input](https://github.com/trinityrnaseq/trinityrnaseq/blob/master/Trinity)、[featureCounts](https://subread.sourceforge.net/featureCounts.html) 和 [HTSeq count](https://htseq.readthedocs.io/en/latest/htseqcount.html)。
 
 ## 结果解读
 
@@ -248,12 +264,12 @@ flowchart TD
     A["Rel_Diff = (Fwd-Rev) / mean(Fwd,Rev)<br/>二项分布双尾 p 值：X~Binomial(total, 0.5)，统计量为 fwd"] --> B{"低覆盖?"}
     B -->|是| C["insufficient-data"]
     B -->|否| D{"abs(Rel_Diff) <= 0.6?"}
-    D -->|是| E["fr-unstranded"]
+    D -->|是| E["内部类型: fr-unstranded"]
     D -->|否| F{"p >= 0.01?"}
     F -->|是| E
     F -->|否| G{"Rel_Diff > 0?"}
-    G -->|是| H["fr-secondstrand"]
-    G -->|否| I["fr-firststrand"]
+    G -->|是| H["内部类型: fr-secondstrand"]
+    G -->|否| I["内部类型: fr-firststrand"]
 ```
 
 # 完整程序文档

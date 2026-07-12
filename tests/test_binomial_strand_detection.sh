@@ -49,13 +49,21 @@ run_case() {
     "$REPO_ROOT/bin/resolveS" -a "$sam" -m 2 -d > "$stdout" 2> "$stderr"
 
     local actual_type
+    local compatible_type
     actual_type="$(awk 'NR == 2 { print $2 }' "$stdout")"
+    compatible_type="$(awk 'NR == 2 { print $3 }' "$stdout")"
     if [[ "$actual_type" != "$expected_type" ]]; then
         echo "FAIL $name: expected Strand_Type=$expected_type, got $actual_type" >&2
         echo "--- stdout ---" >&2
         cat "$stdout" >&2
         echo "--- stderr ---" >&2
         cat "$stderr" >&2
+        return 1
+    fi
+
+    if [[ "$compatible_type" != "$expected_type" ]]; then
+        echo "FAIL $name: expected Compatible_Strand_Type=$expected_type, got $compatible_type" >&2
+        cat "$stdout" >&2
         return 1
     fi
 }
